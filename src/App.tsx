@@ -8,25 +8,9 @@ import Home from './pages/Home';
 // import Home from './pages/Home'
 import NiryoPage from './pages/NiryoPage';
 import Raspberry from './pages/Raspberry';
-import { useEffect } from 'react';
-const { ipcRenderer } = window.require('electron');
 
 function App() {
-	useEffect(() => {
-		ipcRenderer.on('update_available', () => {
-			console.log('une mise à jour est disponible');
-		});
-
-		ipcRenderer.on('update_downloaded', () => {
-			// Demandez à l'utilisateur s'il souhaite redémarrer l'application pour installer la mise à jour
-      console.log('une mise à jour est téléchargée');
-		});
-
-    return () => {
-      ipcRenderer.removeAllListeners('update_available');
-      ipcRenderer.removeAllListeners('update_downloaded');
-    };
-	}, []);
+  
 
 	return (
 		<>

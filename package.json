@@ -70,8 +70,8 @@
     "publish": [
       {
           "provider": "github",
-          "repo": "vitta-",
-          "owner": "<Votre nom d'utilisateur>"
+          "repo": "vitta-companion",
+          "owner": "Nixoals"
       }
   ]
 

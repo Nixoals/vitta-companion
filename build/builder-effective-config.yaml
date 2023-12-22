@@ -15,4 +15,8 @@ mac:
   target: dmg
   category: public.app-category.utilities
   icon: assets/icons/favicon.icns
+publish:
+  - provider: github
+    repo: vitta-companion
+    owner: Nixoals
 electronVersion: 26.5.0
