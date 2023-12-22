@@ -58,7 +58,7 @@ const Home = () => {
 						<div className="text-xl">Veuillez redémarrer l'application pour installer la mise à jour</div>
 					</>
 				) : (
-					<div className="text-2xl mt-12">Vous êtes à jour</div>
+					<div className="text-2xl mt-12 text-green-700">Vous êtes à jour</div>
 				)}
 			</div>
 		</section>
