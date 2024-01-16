@@ -9,6 +9,7 @@
     "clean-extra": "rm -rf build/mac-arm64",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
+
   },
   "dependencies": {
     "electron-is-dev": "^2.0.0",

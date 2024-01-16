@@ -10,7 +10,7 @@ if [ -f "$DMG_PATH" ]; then
     echo "Fichier DMG trouvé : $DMG_PATH"
     
     # Signature du fichier DMG
-    codesign --deep --force --sign "VittaCompanion" --keychain --verbose "$DMG_PATH"
+    codesign --deep --force --sign "VittaCert" --keychain --verbose "$DMG_PATH"
 else
     echo "Fichier DMG non trouvé : $DMG_PATH"
 fi

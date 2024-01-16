@@ -2,10 +2,10 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import MainNiryo from './niryoInterface/mainNiryo';
 const isDev = require('electron-is-dev');
-const { autoUpdater } = require('electron-updater');
+// const { autoUpdater } = require('electron-updater');
 
-autoUpdater.logger = require('electron-log');
-autoUpdater.logger.transports.file.level = 'info';
+// autoUpdater.logger = require('electron-log');
+// autoUpdater.logger.transports.file.level = 'info';
 
 // The built directory structure
 //
@@ -70,16 +70,16 @@ app.whenReady().then(() => {
 	new MainNiryo('10.10.10.10', win);
 	// new MainNiryo('192.168.10.110', win);
 	// new MainNiryo('51.83.12.237', win);
-	autoUpdater.checkForUpdatesAndNotify();
+	// autoUpdater.checkForUpdatesAndNotify();
 });
 
-autoUpdater.on('update-available', () => {
-	if (!win) return;
-	console.log('update_available');
-    win.webContents.send('update_available');
-});
+// autoUpdater.on('update-available', () => {
+// 	if (!win) return;
+// 	console.log('update_available');
+//     win.webContents.send('update_available');
+// });
 
-autoUpdater.on('update-downloaded', () => {
-	if (!win) return;
-    win.webContents.send('update_downloaded');
-});
+// autoUpdater.on('update-downloaded', () => {
+// 	if (!win) return;
+//     win.webContents.send('update_downloaded');
+// });
