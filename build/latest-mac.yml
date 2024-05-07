@@ -1,8 +1,8 @@
-version: 1.0.1
+version: 1.0.2
 files:
-  - url: Vitta-Companion-1.0.1-arm64.dmg
-    sha512: F3lSc1lhhcq/EpikWHovLegQyeZgefdGlCbHtcgcqJXI3YS7jL+xHO9wQqN3CX0GMGJpXH3uhDmCFjVTpIcXvA==
-    size: 95632163
-path: Vitta-Companion-1.0.1-arm64.dmg
-sha512: F3lSc1lhhcq/EpikWHovLegQyeZgefdGlCbHtcgcqJXI3YS7jL+xHO9wQqN3CX0GMGJpXH3uhDmCFjVTpIcXvA==
-releaseDate: '2024-01-16T16:03:40.714Z'
+  - url: Vitta-Companion-1.0.2-arm64.dmg
+    sha512: 604KgMNApsdjkPpOmzqH1TBxZANeII0RVRp+VHXq3diS0gbCX7uUCvy9d+ZQ9+WONdVDFzlzMGZOUpT+f2J6IA==
+    size: 95600665
+path: Vitta-Companion-1.0.2-arm64.dmg
+sha512: 604KgMNApsdjkPpOmzqH1TBxZANeII0RVRp+VHXq3diS0gbCX7uUCvy9d+ZQ9+WONdVDFzlzMGZOUpT+f2J6IA==
+releaseDate: '2024-05-07T09:00:39.711Z'
