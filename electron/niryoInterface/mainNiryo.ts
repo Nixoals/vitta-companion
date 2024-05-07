@@ -92,6 +92,10 @@ export default class MainNiryo {
 				this.sendPythonCode(msg.data);
 			});
 
+			this.socket.on('stop_movement', async () => {
+				await this.stopPythonCode();
+			});
+
 			this.socket.on('disconnect_request', () => {
 				console.log('disconnected');
 				this.isVittaConnected = false;
@@ -192,7 +196,9 @@ export default class MainNiryo {
 			messageType: 'niryo_robot_led_ring/LedRingStatus',
 		});
 
+
 		this.ledRingTopic.subscribe((message: any) => {
+			// console.log(message);
 			this.socket.emit('led_ring_status', message);
 		});
 
@@ -203,7 +209,6 @@ export default class MainNiryo {
 		});
 
 		this.savePoseTopic.subscribe((message: any) => {
-			console.log(message);
 			this.socket.emit('free_motion__save_status', message);
 		});
 
@@ -214,7 +219,7 @@ export default class MainNiryo {
 		});
 
 		this.robotActionResultTopic.subscribe((message: any) => {
-			console.log(message.result.message);
+			// console.log(message.result.message);
 			this.socket.emit('robot_action_result', message.result.message);
 		});
 	}
@@ -268,11 +273,33 @@ export default class MainNiryo {
 			executeProgramService.callService(request, (result: any) => {
 				if (JSON.stringify(result).match(/END_OFF_PROGRAMME/g)){
 					this.status = false;
+					this.socket.emit('program_ended', "programme_ended");
 					this.updateCodeRunningStatus();
 				}
 			});
 		} catch (error) {
 			console.log(error);
+		}
+	}
+
+	async stopPythonCode() {
+		try {
+			var stopProgramService = new ROSLIB.Service({
+				ros: this.ros,
+				name: '/niryo_robot_programs_manager/stop_program',
+				serviceType: 'niryo_robot_msgs/Trigger',
+			});
+			var request = new ROSLIB.ServiceRequest({
+				// no data to send to the service
+			});
+			stopProgramService.callService(request, (result: any) => {
+				this.status = false;
+				this.socket.emit('program_ended', result.message);
+				this.updateCodeRunningStatus();
+				return
+			});
+		} catch (error) {
+			return console.log(error);
 		}
 	}
 }

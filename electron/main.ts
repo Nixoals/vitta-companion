@@ -1,7 +1,32 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import MainNiryo from './niryoInterface/mainNiryo';
+const os = require('os');
 const isDev = require('electron-is-dev');
+import { ipcMain } from 'electron';
+
+const checkVersion = async (platform:string) => {
+	let version = '';
+	const appVersion = 'v' + app.getVersion();
+	const url = 'https://api.github.com/repos/Nixoals/vitta-companion/releases/latest'; // update with the new repo when available on vittascience github
+
+	try {
+		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+		const data = await response.json();
+		version = data.tag_name; // get the tag name of the latest release
+		if (version && String(version) !== appVersion) {
+			console.log('New version available: ', version);
+			if (!win) return;
+			win.webContents.send('update_available', {version, platform});
+		} 
+	} catch (error) {
+		console.error('Error fetching latest release version: ', error);
+	}
+};
+
 // const { autoUpdater } = require('electron-updater');
 
 // autoUpdater.logger = require('electron-log');
@@ -33,13 +58,25 @@ function createWindow() {
 			preload: path.join(__dirname, 'preload.js'),
 		},
 	});
-	if (isDev){
+	let platform = os.platform();
+	
+
+	if (isDev) {
 		win.webContents.openDevTools();
 	}
 	// Test active push message to Renderer-process.
 	win.webContents.on('did-finish-load', () => {
 		win?.webContents.send('main-process-message', new Date().toLocaleString());
+		if (platform === 'darwin') {
+			win?.webContents.send('os', 'mac');
+			checkVersion('mac');
+		} else if (platform === 'win32') {
+			win?.webContents.send('os', 'win');
+			checkVersion('win');
+		}
+		
 	});
+	
 
 	if (VITE_DEV_SERVER_URL) {
 		win.loadURL(VITE_DEV_SERVER_URL);
@@ -64,6 +101,12 @@ app.on('activate', () => {
 		createWindow();
 	}
 });
+
+
+ipcMain.on('download', (_, url) => {
+	win?.webContents.downloadURL(url);
+});
+
 
 app.whenReady().then(() => {
 	createWindow();

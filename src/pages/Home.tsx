@@ -5,11 +5,35 @@ import { useEffect, useState } from 'react';
 
 
 const Home = () => {
-	const [messageUpdate, setMessageUpdate] = useState('');
+
+	const [messageUpdate, setMessageUpdate] = useState<string>('');
+	const [platform, setPlatform] = useState<string>('win');
+	const [downloadLink, setDownloadLink] = useState<string>('');
+	
 	useEffect(() => {
-		window.ipcRenderer.on('update_available', () => {
+
+		window.ipcRenderer.on("os", (_, os) => {
+			console.log(os);
+			if (os === 'win') {
+				setPlatform('win');
+			} else if (os === 'mac') {
+				setPlatform('mac');
+			}
+		});
+
+
+		window.ipcRenderer.on('update_available', (_, version) => {
+			console.log(version, platform);
+			const newVersion = version.version;
+			if (version.platform === 'win') {
+				setDownloadLink(`https://github.com/Nixoals/vitta-companion/releases/download/${newVersion}/Vitta.Companion.Setup.${newVersion.replace('v', '')}.exe`);
+			} else if (version.platform === 'mac') {
+				setDownloadLink(`https://github.com/Nixoals/vitta-companion/releases/download/${newVersion}/Vitta.Companion-${newVersion.replace('v', '')}-arm64.dmg`);
+			}
 			console.log('une mise à jour est disponible');
+			console.log(downloadLink);
 			setMessageUpdate('une mise à jour est disponible');
+
 		});
 
 		window.ipcRenderer.on('update_downloaded', () => {
@@ -20,8 +44,15 @@ const Home = () => {
 		return () => {
 			window.ipcRenderer.removeAllListeners('update_available');
 			window.ipcRenderer.removeAllListeners('update_downloaded');
+			window.ipcRenderer.removeAllListeners('os');
 		};
 	}, []);
+
+	const handleDownload = () => {
+        // Ouvrir le lien de téléchargement dans une nouvelle fenêtre
+		console.log(downloadLink);
+        window.ipcRenderer.send('download', downloadLink)
+    };
 	return (
 		<section>
 			<div className="text-2xl mb-12">Choisissez une interface</div>
@@ -55,7 +86,8 @@ const Home = () => {
 				{messageUpdate ? (
 					<>
 						<div className="text-2xl mt-12">{messageUpdate}</div>
-						<div className="text-xl">Veuillez redémarrer l'application pour installer la mise à jour</div>
+						<a href="#" className="text-blue-500" onClick={handleDownload}>Télécharger</a>
+						{/* <div className="text-xl">Veuillez redémarrer l'application pour installer la mise à jour</div> */}
 					</>
 				) : (
 					<div className="text-2xl mt-12 text-green-700">Vous êtes à jour</div>
