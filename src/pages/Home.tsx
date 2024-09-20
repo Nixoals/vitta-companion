@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import Ned2 from '../assets/data/images/ned2.jpg';
 import Raspberry from '../assets/data/images/raspberry.jpg';
+import Nao from '../assets/data/images/nao.png';
 import { useEffect, useState } from 'react';
 
 
@@ -68,9 +69,9 @@ const Home = () => {
 								/>
 							</div>
 						</Link>
-						<div>Robot Niryo</div>
+						<div>Robot Niryo Ned2</div>
 					</div>
-					<div className="flex flex-col">
+					{/* <div className="flex flex-col">
 						<Link to="/raspberry">
 							<div className=" interface_card">
 								<img
@@ -81,6 +82,18 @@ const Home = () => {
 							</div>
 						</Link>
 						<div>Raspberry</div>
+					</div> */}
+					<div className="flex flex-col">
+						<Link to="/nao">
+							<div className="interface_card">
+								<img
+									src={Nao}
+									alt="Niryo"
+									className="w-full h-full object-contain"
+								/>
+							</div>
+						</Link>
+						<div>Robot Nao</div>
 					</div>
 				</div>
 				{messageUpdate ? (

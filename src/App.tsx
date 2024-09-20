@@ -8,6 +8,7 @@ import Home from './pages/Home';
 // import Home from './pages/Home'
 import NiryoPage from './pages/NiryoPage';
 import Raspberry from './pages/Raspberry';
+import Nao from './pages/Nao';
 
 function App() {
   
@@ -28,6 +29,12 @@ function App() {
 						path="/raspberry"
 						element={<Raspberry />}
 					/>
+					<Route
+						path="/nao"
+						element={<Nao></Nao>}
+					>
+
+					</Route>
 				</Routes>
 			</Router>
 		</>

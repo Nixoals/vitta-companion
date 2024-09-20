@@ -25,3 +25,11 @@ declare namespace NodeJS {
 interface Window {
   ipcRenderer: import('electron').IpcRenderer
 }
+
+declare module './utils/robotutils' {
+  const RobotUtilsNao: {
+      onServices: (servicesCallback: Function, errorCallback?: Function) => void;
+      connect: (connectedCallback: Function, errorCallback?: Function) => void;
+  };
+  export = RobotUtilsNao;
+}

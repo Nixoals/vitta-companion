@@ -1,8 +1,9 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
-import MainNiryo from './niryoInterface/mainNiryo';
+// import MainNiryo from './niryoInterface/mainNiryo';
+import MainNao from './naoInterface/mainNao';
 const os = require('os');
-const isDev = require('electron-is-dev');
+// const isDev = require('electron-is-dev');
 import { ipcMain } from 'electron';
 
 const checkVersion = async (platform:string) => {
@@ -61,9 +62,9 @@ function createWindow() {
 	let platform = os.platform();
 	
 
-	if (isDev) {
-		win.webContents.openDevTools();
-	}
+	// if (isDev) {
+	win.webContents.openDevTools();
+	// }
 	// Test active push message to Renderer-process.
 	win.webContents.on('did-finish-load', () => {
 		win?.webContents.send('main-process-message', new Date().toLocaleString());
@@ -110,19 +111,8 @@ ipcMain.on('download', (_, url) => {
 
 app.whenReady().then(() => {
 	createWindow();
-	new MainNiryo('10.10.10.10', win);
-	// new MainNiryo('192.168.10.110', win);
-	// new MainNiryo('51.83.12.237', win);
-	// autoUpdater.checkForUpdatesAndNotify();
+	// new MainNiryo('10.10.10.10', win);
+	new MainNao('192.168.10.126');
 });
 
-// autoUpdater.on('update-available', () => {
-// 	if (!win) return;
-// 	console.log('update_available');
-//     win.webContents.send('update_available');
-// });
 
-// autoUpdater.on('update-downloaded', () => {
-// 	if (!win) return;
-//     win.webContents.send('update_downloaded');
-// });
