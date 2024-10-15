@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import Ned2 from '../assets/data/images/ned2.jpg';
-import Raspberry from '../assets/data/images/raspberry.jpg';
+// import Raspberry from '../assets/data/images/raspberry.jpg';
 import Nao from '../assets/data/images/nao.png';
 import { useEffect, useState } from 'react';
 
@@ -10,6 +10,7 @@ const Home = () => {
 	const [messageUpdate, setMessageUpdate] = useState<string>('');
 	const [platform, setPlatform] = useState<string>('win');
 	const [downloadLink, setDownloadLink] = useState<string>('');
+	const [selectedRobot, setSelectedRobot] = useState<string | null>(null);
 	
 	useEffect(() => {
 
@@ -49,6 +50,11 @@ const Home = () => {
 		};
 	}, []);
 
+	const handleRobotSelection = (robot: string) => {
+		setSelectedRobot(robot);
+		window.ipcRenderer.send('select-robot', robot); // Envoie au processus principal le robot sélectionné
+	};
+
 	const handleDownload = () => {
         // Ouvrir le lien de téléchargement dans une nouvelle fenêtre
 		console.log(downloadLink);
@@ -60,7 +66,7 @@ const Home = () => {
 			<div>
 				<div className="flex justify-center items-center gap-2">
 					<div className="flex flex-col">
-						<Link to="/niryo">
+						<Link to="/niryo" onClick={() => handleRobotSelection('niryo')}>
 							<div className="interface_card">
 								<img
 									src={Ned2}
@@ -84,7 +90,7 @@ const Home = () => {
 						<div>Raspberry</div>
 					</div> */}
 					<div className="flex flex-col">
-						<Link to="/nao">
+						<Link to="/nao" onClick={() => handleRobotSelection('nao')}>
 							<div className="interface_card">
 								<img
 									src={Nao}

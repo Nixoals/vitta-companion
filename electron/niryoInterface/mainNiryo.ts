@@ -38,8 +38,8 @@ export default class MainNiryo {
 		this.init();
 		this.initIpc();
 		// this.subscribeToTopic();
-		this.io = null;
-		this.ros = null;
+		// this.io = null;
+		// this.ros = null;
 		this.status = false;
 		return MainNiryo.instance;
 	}
@@ -54,7 +54,7 @@ export default class MainNiryo {
 		});
 
 		this.io.on('connection', (socket: any) => {
-			console.log('connected');
+			// console.log('connected');
 			this.socket = socket;
 			this.socket.emit('message', 'connected');
 			this.isVittaConnected = true;
@@ -110,13 +110,26 @@ export default class MainNiryo {
 			this.isRosConnected = false;
 			this.updateConnectionStatus();
 		});
+
+		this.server.on('error', (error: any) => {
+			if (error.message === 'EADDRINUSE') {
+				console.log('Error: Address in use');
+				setTimeout(() => {
+					this.server.listen(8887);
+				}, 1000);
+			}
+		});
+
 		this.server.listen(8887);
 	}
 
 	initIpc() {
+		ipcMain.removeHandler('getCodeRunningStatus'); // Supprime le handler s'il existe
 		ipcMain.handle('getCodeRunningStatus', () => {
 			return this.status;
 		});
+
+		ipcMain.removeHandler('getConnectStatus'); // Supprime le handler s'il existe
 		ipcMain.handle('getConnectStatus', () => {
 			return { isRosConnected: this.isRosConnected, isVittaConnected: this.isVittaConnected };
 		});
@@ -153,8 +166,7 @@ export default class MainNiryo {
 		if (this.robotActionResultTopic) {
 			this.robotActionResultTopic.unsubscribe();
 		}
-
-	}	
+	}
 
 	subscribeToTopic() {
 		this.calibrationTopic = new ROSLIB.Topic({
@@ -195,7 +207,6 @@ export default class MainNiryo {
 			name: '/niryo_robot_led_ring/led_ring_status',
 			messageType: 'niryo_robot_led_ring/LedRingStatus',
 		});
-
 
 		this.ledRingTopic.subscribe((message: any) => {
 			// console.log(message);
@@ -271,9 +282,9 @@ export default class MainNiryo {
 				},
 			});
 			executeProgramService.callService(request, (result: any) => {
-				if (JSON.stringify(result).match(/END_OFF_PROGRAMME/g)){
+				if (JSON.stringify(result).match(/END_OFF_PROGRAMME/g)) {
 					this.status = false;
-					this.socket.emit('program_ended', "programme_ended");
+					this.socket.emit('program_ended', 'programme_ended');
 					this.updateCodeRunningStatus();
 				}
 			});
@@ -296,10 +307,34 @@ export default class MainNiryo {
 				this.status = false;
 				this.socket.emit('program_ended', result.message);
 				this.updateCodeRunningStatus();
-				return
+				return;
 			});
 		} catch (error) {
 			return console.log(error);
 		}
+	}
+
+	async disconnect() {
+		// if (this.server){
+		// 	console.log('Closing server');
+		// 	await this.server.close();
+		// 	console.log('Server closed', "this.io: ", this.io);
+		// }
+		// console.log("io connection", this.io)
+		try {
+			if (this.io) {
+				await this.io.httpServer.close();
+				await this.io.close();
+			}
+		} catch (error) {
+			console.log(error);
+		}
+
+		if (this.ros) {
+			await this.ros.close();
+		}
+		// console.log('ROS connection closed');
+		this.isRosConnected = false;
+		this.updateConnectionStatus();
 	}
 }

@@ -157,8 +157,8 @@ function QiSession(host, resource) {
 	// if (host == undefined) host = window.location.host;
 	// if (resource == undefined) resource = 'libs/qimessaging/1.0/socket.io';
 	// if (host.substring(0, 7) != 'http://') host = 'http://' + host;
-
-	var _socket = io_v0_9.connect(`http://${host}`, { resource: 'libs/qimessaging/1.0/socket.io', transports: ['xhr-polling'] });
+	var _socket = null;
+	_socket = io_v0_9.connect(`http://${host}`, { resource: 'libs/qimessaging/1.0/socket.io', transports: ['xhr-polling'], reconnect: false });
 	var _dfd = new Array();
 	var _sigs = new Array();
 	var _idm = 0;
@@ -212,6 +212,7 @@ function QiSession(host, resource) {
 	});
 
 	_socket.on('disconnect', function (data) {
+		console.log('disconnected');
 		for (var idm in _dfd) {
 			_dfd[idm].reject('Call ' + idm + ' canceled: disconnected');
 			delete _dfd[idm];
@@ -247,9 +248,25 @@ function QiSession(host, resource) {
 	}
 
 	this.service = createMetaCall('ServiceDirectory', 'service');
-
+	console.log("socket in robotUtils", _socket);
 	this.socket = function () {
 		return _socket;
+	};
+	this.disconnect = function () {
+		try {
+			console.log("disconnecting socket");
+			// _socket.removeAllListeners('connect');
+			// _socket.removeAllListeners('disconnect');
+			// _socket.removeAllListeners('reply');
+			// _socket.removeAllListeners('error');
+			// _socket.removeAllListeners('signal');
+	
+			_socket.disconnect();
+			console.log("socket disconnected", _socket);
+			_socket = null;
+		} catch (error) {
+			console.error("error disconnecting Nao")
+		}
 	};
 }
 
@@ -305,8 +322,10 @@ const RobotUtils = (function(self) {
     self = self || {};
 
     self.onServices = function(servicesCallback, errorCallback, host) {
+		console.log("pendingConnectionCallbacks: ", pendingConnectionCallbacks);
         self.robotIp = host;
         self.connect(function(session) {
+			console.log("session: ", session);
             var wantedServices = getParamNames(servicesCallback);
             var pendingServices = wantedServices.length;
             var services = new Array(wantedServices.length);
@@ -328,6 +347,7 @@ const RobotUtils = (function(self) {
                     });
                 })(i);
             }
+			pendingConnectionCallbacks = [];
         }, errorCallback);
     }
 
@@ -370,13 +390,15 @@ const RobotUtils = (function(self) {
     self.connect = function(connectedCallback, failureCallback) {
         if (self.session) {
             // We already have a session, don't create a new one
+			console.log("here we are");
             connectedCallback(self.session);
             return;
         }
         else if (pendingConnectionCallbacks.length > 0) {
             // A connection attempt is in progress, just add this callback to the queue
+			console.log("here we fall");
             pendingConnectionCallbacks.push(connectedCallback);
-            return;
+            // return;
         }
         else {
             // Add self to the queue, but create a new connection.
@@ -391,6 +413,7 @@ const RobotUtils = (function(self) {
         }
 
         function onConnected() {;
+			console.log("is nao connected",self.session.socket().socket.connected);
             var numCallbacks = pendingConnectionCallbacks.length;
             for (var i = 0; i < numCallbacks; i++) {
                 pendingConnectionCallbacks[i](self.session);
@@ -399,16 +422,18 @@ const RobotUtils = (function(self) {
 
         function onDisconnected() {
             console.log("Disconnected from robot");
+			if (failureCallback) failureCallback();
         }
 
 
-
+		console.log("creating new session");
         self.session = new QiSession(
             self.robotIp, 
         );
+		console.log("session created", self.session);
         
         self.session.socket().on('connect', onConnected);
-        self.session.socket().on('disconnect', onDisconnected);//failureCallback);
+        self.session.socket().on('disconnect', onDisconnected);
        
     }
 
@@ -509,6 +534,6 @@ const RobotUtils = (function(self) {
 });
 
 const RobotUtilsNao = RobotUtils();
-// const RobotUtilsNao = "coucou";
+
 
 export default RobotUtilsNao;

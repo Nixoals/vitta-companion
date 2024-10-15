@@ -1,10 +1,12 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
-// import MainNiryo from './niryoInterface/mainNiryo';
+import MainNiryo from './niryoInterface/mainNiryo';
 import MainNao from './naoInterface/mainNao';
 const os = require('os');
 // const isDev = require('electron-is-dev');
 import { ipcMain } from 'electron';
+let currentRobotInstance:any = null;
+let currentRobot:String = '';
 
 const checkVersion = async (platform:string) => {
 	let version = '';
@@ -103,6 +105,31 @@ app.on('activate', () => {
 	}
 });
 
+ipcMain.on('select-robot', async (event, robot) => {
+	console.log('Selected robot: ', robot, currentRobot);
+	if (currentRobot === robot) {
+		if (robot === "nao" && currentRobot === "nao"){
+			return console.log('Nao is already connected');
+		} else if (robot === "niryo" && currentRobot === "niryo"){
+			return console.log('Niryo is already connected'); 
+		}
+	}
+	if (currentRobotInstance) {
+		await currentRobotInstance.disconnect();
+	}
+
+	// Créer une nouvelle instance en fonction de la sélection
+	if (robot === 'niryo') {
+		currentRobotInstance = new MainNiryo('10.10.10.10', win);
+		currentRobot = 'niryo';
+		console.log('Niryo instance created');
+	} else if (robot === 'nao') {
+		currentRobotInstance = new MainNao('192.168.10.105');
+		currentRobot = 'nao';
+		console.log('Nao instance created');
+	}
+});
+
 
 ipcMain.on('download', (_, url) => {
 	win?.webContents.downloadURL(url);
@@ -112,7 +139,7 @@ ipcMain.on('download', (_, url) => {
 app.whenReady().then(() => {
 	createWindow();
 	// new MainNiryo('10.10.10.10', win);
-	new MainNao('192.168.10.126');
+	// new MainNao('192.168.10.105');
 });
 
 
