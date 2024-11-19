@@ -248,24 +248,40 @@ function QiSession(host, resource) {
 	}
 
 	this.service = createMetaCall('ServiceDirectory', 'service');
-	console.log("socket in robotUtils", _socket);
+	// console.log("socket in robotUtils", _socket);
 	this.socket = function () {
 		return _socket;
 	};
-	this.disconnect = function () {
+	this.disconnect = async function () {
+		// console.log("test socket", _socket);
 		try {
-			console.log("disconnecting socket");
-			// _socket.removeAllListeners('connect');
-			// _socket.removeAllListeners('disconnect');
-			// _socket.removeAllListeners('reply');
-			// _socket.removeAllListeners('error');
-			// _socket.removeAllListeners('signal');
-	
-			_socket.disconnect();
-			console.log("socket disconnected", _socket);
+			
+			console.log("Disconnecting socket...");
+
+			// Supprimer tous les listeners d'événements pour éviter l'accumulation
+			
+			// Déconnecter proprement
+			console.log("socket.disconnect function:", _socket.socket.disconnect.toString());
+			const testResponse = await _socket.socket.disconnect();
+			console.log("testResponse", testResponse);
+			_socket.removeAllListeners('connect');
+			_socket.removeAllListeners('disconnect');
+			_socket.removeAllListeners('reply');
+			_socket.removeAllListeners('error');
+			_socket.removeAllListeners('signal');
+
+			// S'assurer que le socket est bien déconnecté
+			if (_socket.connected === false) {
+				console.log("Socket is disconnected.");
+			}
+
+			// Réinitialiser l'objet socket à null
 			_socket = null;
+			console.log(_socket);
+			console.log("Socket reset successfully.");
+			
 		} catch (error) {
-			console.error("error disconnecting Nao")
+			console.error("Error disconnecting Nao", error);
 		}
 	};
 }
@@ -293,247 +309,147 @@ function QiSession(host, resource) {
  * Authors: ekroeger@aldebaran.com, jjeannin@aldebaran.com
  */
 
-const RobotUtils = (function(self) {
+class RobotUtilsNao {
+    constructor() {
+        this.session = null;
+        this.robotIp = null;
+        this.pendingConnectionCallbacks = [];
+    }
 
-    /*---------------------------------------------
-     *   Public API
-     */
-
-    /* RobotUtils.onServices(servicesCallback, errorCallback)
-     *
-     * A function for using NAOqi services.
-     *
-     * "servicesCallback" should be a function whose arguments are the
-     * names of NAOqi services; the callback will be called
-     * with those services as parameters (or the errorCallback
-     * will be called with a reason).
-     *
-     * Sample usage:
-     *
-     *   RobotUtils.onServices(function(ALLeds, ALTextToSpeech) {
-     *     ALLeds.randomEyes(2.0);
-     *     ALTextToSpeech.say("I can speak");
-     *   });
-     *
-     * This is actually syntactic sugar over RobotUtils.connect() and
-     * some basic QiSession functions, so that the code stays simple.
-     */
-
-    self = self || {};
-
-    self.onServices = function(servicesCallback, errorCallback, host) {
-		console.log("pendingConnectionCallbacks: ", pendingConnectionCallbacks);
-        self.robotIp = host;
-        self.connect(function(session) {
-			console.log("session: ", session);
-            var wantedServices = getParamNames(servicesCallback);
-            var pendingServices = wantedServices.length;
-            var services = new Array(wantedServices.length);
-            var i;
-            for (i = 0; i < wantedServices.length; i++) {
-                (function (i){
-                    session.service(wantedServices[i]).done(function(service) {
+    // Méthode publique pour obtenir les services Naoqi
+    onServices(servicesCallback, errorCallback, host) {
+        console.log("pendingConnectionCallbacks: ", this.pendingConnectionCallbacks);
+        this.robotIp = host;
+        this.connect((session) => {
+            console.log("session: ", session);
+            const wantedServices = this.getParamNames(servicesCallback);
+            let pendingServices = wantedServices.length;
+            const services = new Array(wantedServices.length);
+            
+            wantedServices.forEach((serviceName, i) => {
+                session.service(serviceName)
+                    .done((service) => {
                         services[i] = service;
                         pendingServices -= 1;
-                        if (pendingServices == 0) {
-                            servicesCallback.apply(undefined, services);
+                        if (pendingServices === 0) {
+                            servicesCallback(...services);
                         }
-                    }).fail(function() {
-                        var reason = "Failed getting a NaoQi Module: " + wantedServices[i]
+                    })
+                    .fail(() => {
+                        const reason = `Failed getting a NaoQi Module: ${serviceName}`;
                         console.log(reason);
                         if (errorCallback) {
                             errorCallback(reason);
                         }
                     });
-                })(i);
-            }
-			pendingConnectionCallbacks = [];
+            });
+
+            // Vider la file d'attente après avoir récupéré les services
+            this.pendingConnectionCallbacks = [];
         }, errorCallback);
     }
 
-    // alias, so that the code looks natural when there is only one service.
-    self.onService = self.onServices;
+    // Alias pour onServices quand il n'y a qu'un seul service
+    onService(servicesCallback, errorCallback, host) {
+        return this.onServices(servicesCallback, errorCallback, host);
+    }
 
-    /* RobotUtils.subscribeToALMemoryEvent(event, eventCallback, subscribeDoneCallback)
-     *
-     * connects a callback to an ALMemory event. Returns a MemoryEventSubscription.
-     *
-     * This is just syntactic sugar over calls to the ALMemory service, which you can
-     * do yourself if you want finer control.
-     */
-    self.subscribeToALMemoryEvent = function(event, eventCallback, subscribeDoneCallback) {
-        var evt = new MemoryEventSubscription(event);
-        self.onServices(function(ALMemory) {
-            ALMemory.subscriber(event).then(function (sub) {
-                evt.setSubscriber(sub)
-                sub.signal.connect(eventCallback).then(function(id) {
+    // Connexion à la session Naoqi
+    connect(connectedCallback, failureCallback) {
+        if (this.session) {
+            // console.log("here we are");
+            // connectedCallback(this.session);
+            // return;
+			this.session = null;
+        } else if (this.pendingConnectionCallbacks.length > 0) {
+            console.log("here we fall");
+            this.pendingConnectionCallbacks.push(connectedCallback);
+            return;
+        } else {
+            this.pendingConnectionCallbacks.push(connectedCallback);
+        }
+
+        const robotlibs = this.robotIp ? `http://${this.robotIp}/libs/` : '/libs/';
+        const qimAddress = this.robotIp ? `${this.robotIp}:80` : null;
+
+        const onConnected = () => {
+			console.log('Connected to robot with transport:',this.session.socket().socket.transport.name);
+            console.log("is nao connected", this.session.socket().socket.connected);
+            this.pendingConnectionCallbacks.forEach(cb => cb(this.session));
+        };
+
+        const onDisconnected = () => {
+            console.log("Disconnected from robot");
+            // if (failureCallback) failureCallback();
+        };
+
+        console.log("creating new session");
+        this.session = new QiSession(this.robotIp);
+        console.log("session created", this.session);
+
+        this.session.socket().on('connect', onConnected);
+        // this.session.socket().on('disconnect', onDisconnected);
+    }
+
+    // Méthode pour s'abonner aux événements ALMemory
+    subscribeToALMemoryEvent(event, eventCallback, subscribeDoneCallback) {
+        const evt = new MemoryEventSubscription(event);
+        this.onServices((ALMemory) => {
+            ALMemory.subscriber(event).then((sub) => {
+                evt.setSubscriber(sub);
+                sub.signal.connect(eventCallback).then((id) => {
                     evt.setId(id);
-                    if (subscribeDoneCallback) subscribeDoneCallback(id)
+                    if (subscribeDoneCallback) subscribeDoneCallback(id);
                 });
-            },
-            onALMemoryError);
+            }, this.onALMemoryError);
         });
         return evt;
     }
 
-    /* RobotUtils.connect(connectedCallback, failureCallback)
-     *
-     * connectedCallback should take a single argument, a NAOqi session object
-     *
-     * This function is mostly meant for intenral use, for your app you
-     * should probably use the more specific RobotUtils.onServices or
-     * RobotUtils.subscribeToALMemoryEvent.
-     *
-     * There can be several calls to .connect() in parallel, only one
-     * session will be created.
-     */
-    self.connect = function(connectedCallback, failureCallback) {
-        if (self.session) {
-            // We already have a session, don't create a new one
-			console.log("here we are");
-            connectedCallback(self.session);
-            return;
-        }
-        else if (pendingConnectionCallbacks.length > 0) {
-            // A connection attempt is in progress, just add this callback to the queue
-			console.log("here we fall");
-            pendingConnectionCallbacks.push(connectedCallback);
-            // return;
-        }
-        else {
-            // Add self to the queue, but create a new connection.
-            pendingConnectionCallbacks.push(connectedCallback);
-        }
-        var qimAddress = null;
-        var robotlibs = '/libs/';
-        if (self.robotIp) {
-            // Special case: we're doing remote debugging on a robot.
-            robotlibs = "http://" + self.robotIp + "/libs/";
-            qimAddress = self.robotIp + ":80";
-        }
-
-        function onConnected() {;
-			console.log("is nao connected",self.session.socket().socket.connected);
-            var numCallbacks = pendingConnectionCallbacks.length;
-            for (var i = 0; i < numCallbacks; i++) {
-                pendingConnectionCallbacks[i](self.session);
-            }
-        }
-
-        function onDisconnected() {
-            console.log("Disconnected from robot");
-			if (failureCallback) failureCallback();
-        }
-
-
-		console.log("creating new session");
-        self.session = new QiSession(
-            self.robotIp, 
-        );
-		console.log("session created", self.session);
-        
-        self.session.socket().on('connect', onConnected);
-        self.session.socket().on('disconnect', onDisconnected);
-       
+    // Fonction interne pour obtenir les paramètres d'une fonction
+    getParamNames(func) {
+        const fnStr = func.toString().replace(/((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg, '');
+        const result = fnStr.slice(fnStr.indexOf('(') + 1, fnStr.indexOf(')')).match(/([^\s,]+)/g);
+        return result === null ? [] : result;
     }
 
-    // public variables that can be useful.
-    // self.robotIp = _getRobotIp();
-    
-    self.session = null;
-
-    /*---------------------------------------------
-     *   Internal helper functions
-     */
-
-    // Repalement for jQuery's getScript function
-    function getScript(source, successCallback, failureCallback) {
-        // var script = document.createElement('script');
-        // var prior = document.getElementsByTagName('script')[0];
-        // script.async = 1;
-        // prior.parentNode.insertBefore(script, prior);
-
-        // script.onload = script.onreadystatechange = function( _, isAbort ) {
-        //     if(isAbort || !script.readyState || /loaded|complete/.test(script.readyState) ) {
-        //         script.onload = script.onreadystatechange = null;
-        //         script = undefined;
-
-        //         if(isAbort) {
-        //             if (failureCallback) failureCallback();
-        //         } else {
-        //             // Success!
-        //             if (successCallback) successCallback();
-        //         }
-        //     }
-        // };
-
-        // script.src = source;
-        successCallback();
+    // Fonction de gestion des erreurs ALMemory
+    onALMemoryError(errMsg) {
+        console.log("ALMemory error: " + errMsg);
     }
+}
 
-    // function _getRobotIp() {
-    //     var regex = new RegExp("[\\?&]robot=([^&#]*)");
-    //     var results = regex.exec(location.search);
-    //     return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " ").replace("/", ""));
-    // }
-
-    // Helper for getting the parameters from a function.
-    var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-    function getParamNames(func) {
-        var fnStr = func.toString().replace(STRIP_COMMENTS, '');
-        var result = fnStr.slice(fnStr.indexOf('(')+1, fnStr.indexOf(')')).match(/([^\s,]+)/g);
-        if(result === null)
-            result = [];
-        return result;
-    };
-
-    // ALMemory helpers (event subscription requires a lot of boilerplate)
-
-    function MemoryEventSubscription(event) {
+// Abonnement à ALMemory
+class MemoryEventSubscription {
+    constructor(event) {
         this._event = event;
         this._internalId = null;
         this._sub = null;
         this._unsubscribe = false;
     }
 
-    MemoryEventSubscription.prototype.setId = function(id) {
+    setId(id) {
         this._internalId = id;
-        // as id can be receveid after unsubscribe call, defere
         if (this._unsubscribe) this.unsubscribe(this._unsubscribeCallback);
     }
 
-    MemoryEventSubscription.prototype.setSubscriber = function(sub) {
+    setSubscriber(sub) {
         this._sub = sub;
-        // as sub can be receveid after unsubscribe call, defere
         if (this._unsubscribe) this.unsubscribe(this._unsubscribeCallback);
     }
 
-    MemoryEventSubscription.prototype.unsubscribe = function(unsubscribeDoneCallback)
-    {
-        if (this._internalId != null && this._sub != null) {
-            evtSubscription = this;
-            evtSubscription._sub.signal.disconnect(evtSubscription._internalId).then(function() {
+    unsubscribe(unsubscribeDoneCallback) {
+        if (this._internalId !== null && this._sub !== null) {
+            this._sub.signal.disconnect(this._internalId).then(() => {
                 if (unsubscribeDoneCallback) unsubscribeDoneCallback();
-            }).fail(onALMemoryError);
-        }
-        else
-        {
+            }).fail(this.onALMemoryError);
+        } else {
             this._unsubscribe = true;
             this._unsubscribeCallback = unsubscribeDoneCallback;
         }
     }
+}
 
-    var onALMemoryError = function(errMsg) {
-        console.log("ALMemory error: " + errMsg);
-    }
-
-    var pendingConnectionCallbacks = [];
-
-    return self;
-
-});
-
-const RobotUtilsNao = RobotUtils();
-
-
+// Exporter une instance de la classe
+// const RobotUtilsNao = new RobotUtils();
 export default RobotUtilsNao;

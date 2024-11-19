@@ -124,7 +124,7 @@ ipcMain.on('select-robot', async (event, robot) => {
 		currentRobot = 'niryo';
 		console.log('Niryo instance created');
 	} else if (robot === 'nao') {
-		currentRobotInstance = new MainNao('192.168.10.105');
+		currentRobotInstance = new MainNao();
 		currentRobot = 'nao';
 		console.log('Nao instance created');
 	}
