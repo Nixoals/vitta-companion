@@ -392,17 +392,18 @@ class RobotUtilsNao {
     }
 
     // Méthode pour s'abonner aux événements ALMemory
-    subscribeToALMemoryEvent(event, eventCallback, subscribeDoneCallback) {
-        const evt = new MemoryEventSubscription(event);
-        this.onServices((ALMemory) => {
-            ALMemory.subscriber(event).then((sub) => {
-                evt.setSubscriber(sub);
-                sub.signal.connect(eventCallback).then((id) => {
-                    evt.setId(id);
-                    if (subscribeDoneCallback) subscribeDoneCallback(id);
-                });
-            }, this.onALMemoryError);
-        });
+    subscribeToALMemoryEvent(ALMemory, event, eventCallback, subscribeDoneCallback) {
+		const evt = new MemoryEventSubscription(event);
+        // this.onServices((ALMemory) => {
+		console.log("Subscribing to ALMemory event:", event);
+		ALMemory.subscriber(event).then((sub) => {
+			evt.setSubscriber(sub);
+			sub.signal.connect(eventCallback).then((id) => {
+				evt.setId(id);
+				if (subscribeDoneCallback) subscribeDoneCallback(id);
+			});
+		}, this.onALMemoryError);
+        // });
         return evt;
     }
 
