@@ -4,8 +4,8 @@ const { NodeSSH } = require('node-ssh');
 const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
+import { ipcMain } from 'electron';
 
-// import { ipcMain } from 'electron';
 // const RobotUtilsNao = require('./naoInterface/utils/robotutils.js')
 
 import RobotUtilsNao from './utils/robotutils';
@@ -36,8 +36,14 @@ export default class MainNao {
 	intervalSupportPolygon: any;
 	cameraInterval: any;
 	currentAction: any;
+	sshConnexion: any;
+	status: boolean;
+	isVittaConnected: boolean;
+	isNaoQiConnected: boolean;
+	window: any;
 
-	constructor() {
+	constructor(win: any) {
+		this.window = win;
 		this.ipAdress = '';
 		this.robotUtils = RobotUtilsNao;
 		this.ALTextToSpeech = null;
@@ -59,7 +65,12 @@ export default class MainNao {
 		this.cameraInterval = null;
 		this.currentAction = null;
 		this.programRunning = false;
+		this.sshConnexion = null;
+		this.status = false;
+		this.isVittaConnected = false;
+		this.isNaoQiConnected = false;
 		this.initServer();
+		this.initIpc();
 	}
 
 	initNaoConnection(clientIp: string) {
@@ -82,13 +93,14 @@ export default class MainNao {
 
 				this.subscribeToALMemoryEvent();
 
-				// check if nao is Awake 
+				// check if nao is Awake
 				// this.checkNaoWakeStatus();
 
 				if (this.robotUtilsNao.session.socket().socket.connected) {
 					this.isNaoConnected = true;
 					this.checkNaoConnection();
 					this.socket.emit('nao-connection-instanciated', this.isNaoConnected);
+					this.updateConnectionStatus();
 				}
 			},
 			() => {
@@ -109,14 +121,17 @@ export default class MainNao {
 		});
 
 		this.io.on('connection', (socket: any) => {
+			this.isVittaConnected = true;
+			this.updateConnectionStatus();
 			const clientIp = socket.handshake.query.ip;
 			this.ipAdress = clientIp;
 			if (this.isNaoConnected) {
+				this.checkNaoWakeStatus();
+				console.log('Nao is already connected');
 				this.socket = socket;
 				this.socket.emit('pending-nao-connection');
 				setTimeout(() => {
 					this.socket.emit('nao-connection-instanciated', this.isNaoConnected);
-					// this.checkNaoWakeStatus();
 				}, 1000);
 				console.log('Nao is already connected');
 			} else {
@@ -124,12 +139,10 @@ export default class MainNao {
 				this.socket = socket;
 				this.socket.emit('pending-nao-connection');
 			}
-			// this.socket.emit('message', 'connected');
 
 			this.socket.on('subscribe_joints_states', () => {
 				console.log('subscribed to joints states');
 				this.socket.emit('event', 'subscribed to joints states command');
-				// this.subscribeJointsStates();
 			});
 
 			// this.socket.on('say_text', async (text: String) => {
@@ -158,7 +171,7 @@ export default class MainNao {
 						clearInterval(this.intervalRobotPosition);
 						this.intervalRobotPosition = null;
 					} else {
-						const position = await await this.ALMotion.getRobotPosition(true);
+						const position = await this.ALMotion.getRobotPosition(true);
 						this.socket.emit('robot_position', position);
 					}
 				}, 50);
@@ -253,6 +266,10 @@ export default class MainNao {
 					});
 			});
 
+			this.socket.on('kill_program', () => {
+				this.killProgram();
+			});
+
 			this.socket.on('rest_command', async () => {
 				if (this.ALMotion && !this.programRunning) {
 					await this.ALMotion.rest();
@@ -262,6 +279,8 @@ export default class MainNao {
 
 			this.socket.on('disconnect', () => {
 				console.log('disconnected from client');
+				this.isVittaConnected = false;
+				this.updateConnectionStatus();
 				this.clearIntervals();
 				if (this.socket === socket) {
 					// this.isNaoConnected = false;
@@ -283,14 +302,40 @@ export default class MainNao {
 			console.log('Server running on port 8889');
 		});
 	}
+	initIpc() {
+		ipcMain.removeHandler('getCodeRunningStatus'); // Supprime le handler s'il existe
+		ipcMain.handle('getCodeRunningStatus', () => {
+			return this.status;
+		});
 
-	// async checkNaoWakeStatus() {
-	// 	await this.ALMotion.robotIsWakeUp().then((value:boolean) => {
-	// 		this.socket.emit('wake_up_status', value);
-	// 	}).catch((error: any) => {
-	// 		console.error('Error checking wake up status:', error);
-	// 	});
-	// }
+		ipcMain.removeHandler('getConnectStatus'); // Supprime le handler s'il existe
+		ipcMain.handle('getConnectStatus', () => {
+			return { isRosConnected: this.isNaoQiConnected, isVittaConnected: this.isVittaConnected };
+		});
+	}
+
+	updateConnectionStatus() {
+		if (this.window !== null) {
+			this.window.webContents.send('connectStatusUpdated', { isNaoQiConnected: this.isNaoConnected, isVittaConnected: this.isVittaConnected });
+		}
+	}
+
+	updateCodeRunningStatus() {
+		if (this.window !== null) {
+			this.window.webContents.send('codeRunningStatusUpdated', this.status);
+		}
+	}
+
+	async checkNaoWakeStatus() {
+		try {
+			const status = await this.ALMotion.robotIsWakeUp();
+			if (status) {
+				this.socket.emit('wake_up_status', status);
+			}
+		} catch (error) {
+			console.error('Error checking wake up status:', error);
+		}
+	}
 
 	async subscribeToALMemoryEvent() {
 		if (!this.ALMemory) {
@@ -298,7 +343,7 @@ export default class MainNao {
 			return;
 		}
 
-		if (this.socket === null) {	
+		if (this.socket === null) {
 			console.error('Client disconnected, stopping ALMemory event subscription');
 			return;
 		}
@@ -434,27 +479,43 @@ export default class MainNao {
 			}
 		}
 
-		const finalSubs = await this.ALVideoDevice.getSubscribers();
-		console.log('final subscribers', finalSubs);
+		// const finalSubs = await this.ALVideoDevice.getSubscribers();
+		// console.log('final subscribers', finalSubs);
 	}
 
 	async checkNaoConnection() {
 		if (this.ALVideoDevice) {
-			const isCameraOpen = await this.ALVideoDevice.isCameraOpen(0);
-			console.log('is camera open', isCameraOpen);
+			// const isCameraOpen = await this.ALVideoDevice.isCameraOpen(0);
 			const cameraSubscribers = await this.ALVideoDevice.getSubscribers();
-			console.log('camera subscribers', cameraSubscribers);
-			console.log('Camera subscribers length', cameraSubscribers.length);
 			if (cameraSubscribers.length > 0) {
 				this.clearCameraSubscribers(cameraSubscribers);
 			}
 		}
 		setTimeout(async () => {
-			this.led('AllLeds', 0.5, 0.5, 0, 3);
-			this.animatedSay('connecté');
+			this.checkNaoWakeStatus();
+			this.led('AllLeds', 0.5, 0.5, 0.5, 3);
+			this.say('connecté');
 			await this.getBatteryLevel();
+			const state = await this.getAutonomousState();
+			console.log('Autonomous state:', state);
+			if (state !== 'disabled') {
+				this.setAutonomousOff();
+
+			}
 		}, 3000);
 		return this.isNaoConnected;
+	}
+
+	async getAutonomousState() {
+		const state = await this.ALAutonomousLife.getState();
+		return state;
+	}
+
+	setAutonomousOff() {
+		console.log('Disabling autonomous life');
+		this.ALAutonomousLife.setState('disabled').then(() => {
+			console.log('Autonomous life disabled');
+		});
 	}
 
 	led(led = 'AllLeds', r = 1, g = 0, b = 0, duration = 3) {
@@ -470,13 +531,18 @@ export default class MainNao {
 	}
 
 	async getBatteryLevel() {
-		try {
-			const battery = await this.ALBattery.getBatteryCharge();
-			this.say(`La batterie est à ${battery}%`);
-			return battery;
-		} catch (error) {
-			console.log(error);
-		}
+		return new Promise(async (resolve, reject) => {
+			try {
+				const battery = await this.ALBattery.getBatteryCharge();
+				this.ALTextToSpeech.say(`La batterie est à ${battery}%`).then(() => {
+					console.log('Battery level:', battery);
+					return resolve(battery);
+				});
+			} catch (error) {
+				console.log(error);
+				reject(error);
+			}
+		});
 	}
 
 	async getRobotPosition() {
@@ -511,12 +577,15 @@ export default class MainNao {
 			console.log('A program is already running');
 			return;
 		}
-		const ssh = new NodeSSH({ debug: console.log });
+		console.log('Sending SSH command... Curent state:', this.sshConnexion);
+		this.sshConnexion = new NodeSSH({ debug: console.log });
 		try {
 			const tempFilePath = path.join(os.tmpdir(), 'nao_temp_code.py');
 			fs.writeFileSync(tempFilePath, code);
 			console.log('Connecting to:', this.ipAdress, 'with username:', 'nao');
-			await ssh.connect({
+			this.status = true;
+			this.updateCodeRunningStatus();
+			await this.sshConnexion.connect({
 				host: this.ipAdress,
 				username: 'nao',
 				password: 'nao',
@@ -524,28 +593,75 @@ export default class MainNao {
 				port: 22,
 			});
 
-			await ssh.putFile(tempFilePath, '/home/nao/nao_temp_code.py');
+			await this.sshConnexion.putFile(tempFilePath, '/home/nao/nao_temp_code.py');
 
 			console.log('Connected to Nao via SSH');
 			this.programRunning = true;
 			this.socket.emit('event', 'program_running');
-			// const result = await ssh.execCommand('python /home/nao/naoEyeLEDsExamples.py');
-			const result = await ssh.execCommand('PYTHONPATH=/opt/aldebaran/lib/python2.7/site-packages python /home/nao/nao_temp_code.py');
+
+			const result = await this.sshConnexion.execCommand('PYTHONPATH=/opt/aldebaran/lib/python2.7/site-packages python /home/nao/nao_temp_code.py');
 			console.log('STDOUT: ' + result.stdout);
 
 			console.log('STDERR: ' + result.stderr);
-			if (result.stderr){
+			if (result.stderr) {
 				this.socket.emit('error', result.stderr);
 			}
-			const suppressFile = await ssh.execCommand('rm /home/nao/nao_temp_code.py');
+			const suppressFile = await this.sshConnexion.execCommand('rm /home/nao/nao_temp_code.py');
 			console.log('STDOUT: ' + suppressFile.stdout);
 			console.log('STDERR: ' + suppressFile.stderr);
-			await ssh.dispose();
+			await this.sshConnexion.dispose();
 			this.socket.emit('event', 'program_ended');
 			this.programRunning = false;
+			this.sshConnexion = null;
+			this.status = false;
+			this.updateCodeRunningStatus();
+			console.log('ssh connexion disposed', this.sshConnexion);
 		} catch (error) {
 			console.log(error);
 		}
+	}
+
+	async killProgram() {
+		if (!this.programRunning) {
+			console.log('No program is currently running');
+			return;
+		}
+
+		if (!this.sshConnexion) {
+			console.log('No SSH connexion available');
+		}
+		try {
+			const checkResult = await this.sshConnexion.execCommand('ps -ef | grep "nao_temp_code.py" | grep -v grep');
+			if (!checkResult.stdout) {
+				console.log('No program is currently running');
+				return;
+			}
+			this.socket.emit('event', 'Kill_command_sent');
+			const killResult = await this.sshConnexion.execCommand('pkill -f "/home/nao/nao_temp_code.py"');
+			console.log('STDERR kill: ' + killResult.stderr);
+			if (killResult.stderr) {
+				this.socket.emit('error', killResult.stderr);
+			}
+		} catch (error) {
+			console.log(error);
+		}
+
+		// const ssh = new NodeSSH({ debug: console.log });
+		// try {
+		// 	ssh.connect({
+		// 		host: this.ipAdress,
+		// 		username: 'nao',
+		// 		password: 'nao',
+		// 		tryKeyboard: true,
+		// 		port: 22,
+		// 	})
+		// 	const checkResult = await ssh.execCommand('ps -ef | grep "nao_temp_code.py" | grep -v grep');
+		// 	console.log('STDOUT: ' + checkResult.stdout);
+		// 	await ssh.dispose();
+		// 	this.socket.emit('event', 'program_ended');
+		// } catch (error) {
+		// 	console.log(error);
+		// }
 	}
 
 	async disconnect() {
