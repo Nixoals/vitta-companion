@@ -80,7 +80,7 @@ export default class MainNao {
 		this.robotUtilsNao.onService(
 			(ALLeds: any, ALTextToSpeech: any, ALAnimatedSpeech: any, ALRobotPosture: any, ALMotion: any, ALAutonomousLife: any, ALBehaviorManager: any, ALBattery: any, ALVideoDevice: any, ALMemory: any) => {
 				// retriev all APIs commands
-
+				// don't forget to remap all services in wantedServices array in robotUtilsNao (onServices) in the same call order (otherwise it will not work due to the minimization of function params)
 				this.ALTextToSpeech = ALTextToSpeech;
 				this.ALAnimatedSpeech = ALAnimatedSpeech;
 				this.ALRobotPosture = ALRobotPosture;
@@ -105,8 +105,8 @@ export default class MainNao {
 					}
 				}
 			},
-			() => {
-				console.log("an error occured can't connect to nao");
+			(reason:string) => {
+				console.log("an error occured can't connect to nao :", reason);
 			},
 			clientIp
 		);

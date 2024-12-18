@@ -316,7 +316,8 @@ class RobotUtilsNao {
     onServices(servicesCallback, errorCallback, host) {
         this.robotIp = host;
         this.connect((session) => {
-            const wantedServices = this.getParamNames(servicesCallback);
+            // const wantedServices = this.getParamNames(servicesCallback);
+            const wantedServices = ["ALLeds", "ALTextToSpeech", "ALAnimatedSpeech", "ALRobotPosture", "ALMotion", "ALAutonomousLife", "ALBehaviorManager", "ALBattery", "ALVideoDevice", "ALMemory"];
             let pendingServices = wantedServices.length;
             const services = new Array(wantedServices.length);
             

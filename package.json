@@ -1,8 +1,8 @@
 {
   "name": "vitta-companion",
   "private": true,
-  "description": "l'application Vitta Companion permet la connexion entre le robot Niryo Ned2 et la plateforme Vittascience",
-  "version": "1.0.2",
+  "description": "l'application Vitta Companion permet la connexion entre les robots Niryo Ned2 et NAO V6 et la plateforme Vittascience",
+  "version": "1.0.3",
   "scripts": {
     "dev": "NODE_OPTIONS='--trace-warnings' vite",
     "build": "tsc && vite build && ./builderSign.sh && npm run clean-extra",

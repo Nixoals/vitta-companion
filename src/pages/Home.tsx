@@ -10,7 +10,7 @@ const Home = () => {
 	const [messageUpdate, setMessageUpdate] = useState<string>('');
 	const [platform, setPlatform] = useState<string>('win');
 	const [downloadLink, setDownloadLink] = useState<string>('');
-	const [selectedRobot, setSelectedRobot] = useState<string | null>(null);
+	const [_selectedRobot, setSelectedRobot] = useState<string | null>(null);
 	
 	useEffect(() => {
 

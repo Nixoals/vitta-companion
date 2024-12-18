@@ -12,8 +12,7 @@ const NiryoPage = () => {
 
 	useEffect(() => {
 		console.log('useEffect codeRunning');
-		const codeRunningListener = (event: any, status: boolean) => {
-			console.log(event);
+		const codeRunningListener = (_event: any, status: boolean) => {
 			setCodeRunning(status);
 		};
 
@@ -30,8 +29,7 @@ const NiryoPage = () => {
 	}, []);
 
 	useEffect(() => {
-		const connectStatusListener = (event: any, { isRosConnected, isVittaConnected }: { isRosConnected: boolean; isVittaConnected: boolean }) => {
-			console.log(event);
+		const connectStatusListener = (_event: any, { isRosConnected, isVittaConnected }: { isRosConnected: boolean; isVittaConnected: boolean }) => {
 			setRosConnectStatus(isRosConnected);
 			setVittaConnectStatus(isVittaConnected);
 		};

@@ -2,11 +2,29 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import MainNiryo from './niryoInterface/mainNiryo';
 import MainNao from './naoInterface/mainNao';
+// import log from 'electron-log';
+
 const os = require('os');
 // const isDev = require('electron-is-dev');
 import { ipcMain } from 'electron';
 let currentRobotInstance:any = null;
 let currentRobot:String = '';
+
+// // Configuration des logs
+// log.transports.file.level = 'info'; // Niveau de log (info, warn, error)
+// log.transports.file.resolvePathFn = () => 'logs/backend.log'; // Emplacement du fichier log
+
+// // Redirection des sorties console
+// console.log = log.info;
+// console.warn = log.warn;
+// console.error = log.error;
+
+// // Exemple de log
+// log.info('Application started in production mode');
+// log.warn('This is a warning');
+// log.error('An error occurred');
+
+
 
 const checkVersion = async (platform:string) => {
 	let version = '';
@@ -105,7 +123,7 @@ app.on('activate', () => {
 	}
 });
 
-ipcMain.on('select-robot', async (event, robot) => {
+ipcMain.on('select-robot', async (_event, robot) => {
 	console.log('Selected robot: ', robot, currentRobot);
 	if (currentRobot === robot) {
 		if (robot === "nao" && currentRobot === "nao"){
