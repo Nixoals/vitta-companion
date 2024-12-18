@@ -69,13 +69,14 @@ export default class MainNao {
 		this.status = false;
 		this.isVittaConnected = false;
 		this.isNaoQiConnected = false;
+		this.io = null;
 		this.initServer();
 		this.initIpc();
 	}
 
 	initNaoConnection(clientIp: string) {
-		console.log('init service');
 		this.robotUtilsNao = new RobotUtilsNao();
+		console.log('robotUtilsNao', this.robotUtilsNao);
 		this.robotUtilsNao.onService(
 			(ALLeds: any, ALTextToSpeech: any, ALAnimatedSpeech: any, ALRobotPosture: any, ALMotion: any, ALAutonomousLife: any, ALBehaviorManager: any, ALBattery: any, ALVideoDevice: any, ALMemory: any) => {
 				// retriev all APIs commands
@@ -93,14 +94,15 @@ export default class MainNao {
 
 				this.subscribeToALMemoryEvent();
 
-				// check if nao is Awake
-				// this.checkNaoWakeStatus();
-
 				if (this.robotUtilsNao.session.socket().socket.connected) {
 					this.isNaoConnected = true;
 					this.checkNaoConnection();
-					this.socket.emit('nao-connection-instanciated', this.isNaoConnected);
-					this.updateConnectionStatus();
+					try {
+						this.socket.emit('nao-connection-instanciated', this.isNaoConnected);
+						this.updateConnectionStatus();
+					} catch (error) {
+						console.error('Error checking wake up status:', error);
+					}
 				}
 			},
 			() => {
@@ -111,11 +113,13 @@ export default class MainNao {
 	}
 
 	initServer() {
-		console.log('init server');
+		this.isVittaConnected = false;
+		this.isNaoConnected = false;
+		this.updateConnectionStatus();
 		this.server = http.createServer();
 		this.io = new Server(this.server, {
 			cors: {
-				origin: '*', // Remplacez par l'adresse de votre client
+				origin: '*',
 				methods: ['GET', 'POST'],
 			},
 		});
@@ -127,39 +131,24 @@ export default class MainNao {
 			this.ipAdress = clientIp;
 			if (this.isNaoConnected) {
 				this.checkNaoWakeStatus();
-				console.log('Nao is already connected');
 				this.socket = socket;
 				this.socket.emit('pending-nao-connection');
 				setTimeout(() => {
-					this.socket.emit('nao-connection-instanciated', this.isNaoConnected);
+					try {
+						this.socket.emit('nao-connection-instanciated', this.isNaoConnected);
+					} catch (error) {
+						console.error('Error emitting nao-connection-instanciated:', error);
+					}
 				}, 1000);
-				console.log('Nao is already connected');
 			} else {
 				this.initNaoConnection(clientIp);
 				this.socket = socket;
 				this.socket.emit('pending-nao-connection');
 			}
 
-			this.socket.on('subscribe_joints_states', () => {
-				console.log('subscribed to joints states');
-				this.socket.emit('event', 'subscribed to joints states command');
-			});
-
-			// this.socket.on('say_text', async (text: String) => {
-			// 	this.currentAction = `animatedSay: ${text}`;
-			// 	console.log(`Starting: ${this.currentAction}`);
-			// 	this.ALTextToSpeech.say(text).then(() => {
-			// 		console.log(`Completed: ${this.currentAction}`);
-			// 		this.currentAction = null;
-			// 		this.socket.emit('action_completed', 'animatedSay');
-			// 	});
-			// });
-
 			this.socket.on('say_animated_text', async (text: String) => {
 				this.currentAction = `animatedSay: ${text}`;
-				console.log(`Starting: ${this.currentAction}`);
 				this.ALAnimatedSpeech.say(text).then(() => {
-					console.log(`Completed: ${this.currentAction}`);
 					this.currentAction = null;
 					this.socket.emit('action_completed', 'animatedSay');
 				});
@@ -167,39 +156,49 @@ export default class MainNao {
 
 			this.socket.on('subscribe_robot_position', async () => {
 				this.intervalRobotPosition = setInterval(async () => {
-					if (!this.socket) {
-						clearInterval(this.intervalRobotPosition);
-						this.intervalRobotPosition = null;
-					} else {
-						const position = await this.ALMotion.getRobotPosition(true);
-						this.socket.emit('robot_position', position);
+					if (this.isNaoConnected) {
+						try {
+							const position = await this.ALMotion.getRobotPosition(true);
+							if (this.socket !== null && typeof this.socket.emit === 'function') {
+								this.socket.emit('robot_position', position);
+							} else {
+								clearInterval(this.intervalRobotPosition);
+								this.intervalRobotPosition = null;
+							}
+						} catch (error) {
+							console.error('Error fetching robot position:', error);
+						}
 					}
 				}, 50);
 			});
 
 			this.socket.on('say_text', (text: string, callback: any) => {
-				console.log('say text', text);
 				this.ALAnimatedSpeech.say(text).then(() => {
-					console.log(`Completed: ${this.currentAction}`);
 					this.currentAction = null;
 					callback('action_done');
 				});
 			});
 
-			this.socket.on('subscribe_single_joint_state', async () => {
-				const jointAngles = await this.ALMotion.getAngles('Body', true);
-				this.socket.emit('single_joint_state_value', jointAngles);
-			});
+			// this.socket.on('subscribe_single_joint_state', async () => {
+			// 	const jointAngles = await this.ALMotion.getAngles('Body', true);
+			// 	this.socket.emit('single_joint_state_value', jointAngles);
+			// });
 
 			this.socket.on('subscribe_joints_states', async () => {
 				this.socket.emit('event', 'subscribed to joints states command');
 				this.intervalJointsStates = setInterval(async () => {
-					if (this.socket) {
-						const jointAngles = await this.ALMotion.getAngles('Body', true);
-						this.socket.emit('joints_states', jointAngles);
-					} else {
-						clearInterval(this.intervalJointsStates);
-						this.intervalJointsStates = null;
+					if (this.isNaoConnected) {
+						try {
+							const jointAngles = await this.ALMotion.getAngles('Body', true);
+							if (this.socket !== null && typeof this.socket.emit === 'function') {
+								this.socket.emit('joints_states', jointAngles);
+							} else {
+								clearInterval(this.intervalJointsStates);
+								this.intervalJointsStates = null;
+							}
+						} catch (error) {
+							console.error('Error fetching joints states:', error);
+						}
 					}
 				}, 50);
 			});
@@ -207,12 +206,16 @@ export default class MainNao {
 			this.socket.on('get_com', async () => {
 				this.socket.emit('event', 'subscribed to com command');
 				this.intervalCOM = setInterval(async () => {
-					if (this.socket) {
+					try {
 						const com = await this.ALMotion.getCOM('Body', 0, true);
-						this.socket.emit('com_value', com);
-					} else {
-						clearInterval(this.intervalCOM);
-						this.intervalCOM = null;
+						if (this.socket !== null) {
+							this.socket.emit('com_value', com);
+						} else {
+							clearInterval(this.intervalCOM);
+							this.intervalCOM = null;
+						}
+					} catch (error) {
+						console.error('Error fetching COM:', error);
 					}
 				}, 200);
 				// const com = await this.ALMotion.getCOM('Body', 1, true);
@@ -222,12 +225,16 @@ export default class MainNao {
 			this.socket.on('get_support_polygon', async () => {
 				this.socket.emit('event', 'subscribed to support polygon command');
 				this.intervalSupportPolygon = setInterval(async () => {
-					if (this.socket) {
+					try {
 						const supportPolygon = await this.ALMotion.getSupportPolygon(1, true);
-						this.socket.emit('support_polygon_value', supportPolygon);
-					} else {
-						clearInterval(this.intervalSupportPolygon);
-						this.intervalSupportPolygon = null;
+						if (this.socket !== null) {
+							this.socket.emit('support_polygon_value', supportPolygon);
+						} else {
+							clearInterval(this.intervalSupportPolygon);
+							this.intervalSupportPolygon = null;
+						}
+					} catch (error) {
+						console.error('Error fetching support polygon:', error);
 					}
 				}, 200);
 				// const supportPolygon = await this.ALMotion.getSupportPolygon(1, true);
@@ -243,10 +250,13 @@ export default class MainNao {
 			});
 
 			this.socket.on('retrieve_behavior_running', async () => {
-				const behavior = await this.ALBehaviorManager.getRunningBehaviors();
-				console.log('behavior running', behavior);
-				if (behavior) {
-					this.socket.emit('behavior_running', behavior);
+				try {
+					const behavior = await this.ALBehaviorManager.getRunningBehaviors();
+					if (this.socket !== null && behavior) {
+						this.socket.emit('behavior_running', behavior);
+					}
+				} catch (error) {
+					console.error('Error fetching behavior running:', error);
 				}
 			});
 
@@ -272,8 +282,14 @@ export default class MainNao {
 
 			this.socket.on('rest_command', async () => {
 				if (this.ALMotion && !this.programRunning) {
-					await this.ALMotion.rest();
-					this.socket.emit('action_completed', 'rest');
+					try {
+						await this.ALMotion.rest();
+						if (this.socket !== null) {
+							this.socket.emit('action_completed', 'rest');
+						}
+					} catch (error) {
+						console.error('Error resting Nao:', error);
+					}
 				}
 			});
 
@@ -282,7 +298,7 @@ export default class MainNao {
 				this.isVittaConnected = false;
 				this.updateConnectionStatus();
 				this.clearIntervals();
-				if (this.socket === socket) {
+				if (this.socket !== null) {
 					// this.isNaoConnected = false;
 					this.socket = null;
 				}
@@ -310,12 +326,13 @@ export default class MainNao {
 
 		ipcMain.removeHandler('getConnectStatus'); // Supprime le handler s'il existe
 		ipcMain.handle('getConnectStatus', () => {
-			return { isRosConnected: this.isNaoQiConnected, isVittaConnected: this.isVittaConnected };
+			return { isNaoQiConnected: this.isNaoQiConnected, isVittaConnected: this.isVittaConnected };
 		});
 	}
 
 	updateConnectionStatus() {
 		if (this.window !== null) {
+			console.log('Updating connection status');
 			this.window.webContents.send('connectStatusUpdated', { isNaoQiConnected: this.isNaoConnected, isVittaConnected: this.isVittaConnected });
 		}
 	}
@@ -352,10 +369,16 @@ export default class MainNao {
 			this.ALMemory,
 			'ALTextToSpeech/CurrentSentence',
 			(data: any) => {
-				this.socket.emit('current_sentence', data);
+				try {
+					if (this.socket !== null) {
+						this.socket.emit('current_sentence', data);
+					}
+				} catch (error) {
+					console.error('Error subscribing to ALTextToSpeech/CurrentSentence:', error);
+				}
 			},
 			() => {
-				console.log('subscribed successfully to ALTextToSpeech/CurrentSentence');
+				// console.log('subscribed successfully to ALTextToSpeech/CurrentSentence');
 			}
 		);
 
@@ -363,10 +386,16 @@ export default class MainNao {
 			this.ALMemory,
 			'robotIsWakeUp',
 			(data: any) => {
-				this.socket.emit('wake_up_status', data);
+				try {
+					if (this.socket !== null) {
+						this.socket.emit('wake_up_status', data);
+					}
+				} catch (error) {
+					console.error('Error subscribing to robotIsWakeUp:', error);
+				}
 			},
 			() => {
-				console.log('subscribed successfully to robotIsWakeUp');
+				// console.log('subscribed successfully to robotIsWakeUp');
 			},
 			() => {
 				console.error('Error subscribing to robotIsWakeUp');
@@ -382,19 +411,16 @@ export default class MainNao {
 			}
 
 			const resolution = 0; // 320x240
-			const colorSpace = 11;
-			const fps = 10; // Ajustez selon vos besoins
+			const colorSpace = 11; // RGB => send back a base 64 encoded image
+			const fps = 10;
 
 			this.cameraClient = await this.ALVideoDevice.subscribeCamera(
 				'cameraClient',
-				0, // Caméra frontale
+				0, // Front top camera
 				resolution,
 				colorSpace,
 				fps
 			);
-
-			console.log('Camera subscription successful:', this.cameraClient);
-
 			return true;
 		} catch (error) {
 			console.error('Error subscribing to camera:', error);
@@ -431,7 +457,7 @@ export default class MainNao {
 		}
 
 		if (this.cameraClient) {
-			console.log('Camera streaming already active');
+			// console.log('Camera streaming already active');
 			return;
 		}
 
@@ -450,7 +476,7 @@ export default class MainNao {
 						this.unsubscribeCamera();
 						return;
 					} else {
-						console.log('Sending camera frame');
+						// console.log('Sending camera frame');
 						this.socket.emit('camera_frame', image); // Envoie l'image au client
 					}
 				}
@@ -469,7 +495,6 @@ export default class MainNao {
 			this.ALVideoDevice.unsubscribe(this.cameraClient);
 			this.cameraClient = null;
 		}
-		console.log('Camera streaming stopped');
 	}
 
 	async clearCameraSubscribers(cameras: Array<string>) {
@@ -478,14 +503,10 @@ export default class MainNao {
 				await this.ALVideoDevice.unsubscribe(camera);
 			}
 		}
-
-		// const finalSubs = await this.ALVideoDevice.getSubscribers();
-		// console.log('final subscribers', finalSubs);
 	}
 
 	async checkNaoConnection() {
 		if (this.ALVideoDevice) {
-			// const isCameraOpen = await this.ALVideoDevice.isCameraOpen(0);
 			const cameraSubscribers = await this.ALVideoDevice.getSubscribers();
 			if (cameraSubscribers.length > 0) {
 				this.clearCameraSubscribers(cameraSubscribers);
@@ -497,10 +518,8 @@ export default class MainNao {
 			this.say('connecté');
 			await this.getBatteryLevel();
 			const state = await this.getAutonomousState();
-			console.log('Autonomous state:', state);
 			if (state !== 'disabled') {
 				this.setAutonomousOff();
-
 			}
 		}, 3000);
 		return this.isNaoConnected;
@@ -512,7 +531,6 @@ export default class MainNao {
 	}
 
 	setAutonomousOff() {
-		console.log('Disabling autonomous life');
 		this.ALAutonomousLife.setState('disabled').then(() => {
 			console.log('Autonomous life disabled');
 		});
@@ -535,7 +553,6 @@ export default class MainNao {
 			try {
 				const battery = await this.ALBattery.getBatteryCharge();
 				this.ALTextToSpeech.say(`La batterie est à ${battery}%`).then(() => {
-					console.log('Battery level:', battery);
 					return resolve(battery);
 				});
 			} catch (error) {
@@ -577,7 +594,6 @@ export default class MainNao {
 			console.log('A program is already running');
 			return;
 		}
-		console.log('Sending SSH command... Curent state:', this.sshConnexion);
 		this.sshConnexion = new NodeSSH({ debug: console.log });
 		try {
 			const tempFilePath = path.join(os.tmpdir(), 'nao_temp_code.py');
@@ -645,61 +661,20 @@ export default class MainNao {
 		} catch (error) {
 			console.log(error);
 		}
-
-		// const ssh = new NodeSSH({ debug: console.log });
-		// try {
-		// 	ssh.connect({
-		// 		host: this.ipAdress,
-		// 		username: 'nao',
-		// 		password: 'nao',
-		// 		tryKeyboard: true,
-		// 		port: 22,
-		// 	})
-		// 	const checkResult = await ssh.execCommand('ps -ef | grep "nao_temp_code.py" | grep -v grep');
-		// 	console.log('STDOUT: ' + checkResult.stdout);
-		// 	await ssh.dispose();
-		// 	this.socket.emit('event', 'program_ended');
-		// } catch (error) {
-		// 	console.log(error);
-		// }
 	}
 
 	async disconnect() {
 		this.clearIntervals();
-		// Déconnecter Nao proprement
-		if (this.isNaoConnected && this.robotUtilsNao.session && this.robotUtilsNao.session.socket()) {
-			console.log('Disconnecting Nao...');
-			// this.robotUtilsNao.session.socket().socket.options.reconnect = false;
-			// this.robotUtilsNao.session.socket().removeAllListeners('connect');
-			// this.robotUtilsNao.session.socket().removeAllListeners('disconnect');
-			// this.robotUtilsNao.session.socket().removeAllListeners('reply');
-			// this.robotUtilsNao.session.socket().removeAllListeners('error');
-			// this.robotUtilsNao.session.socket().removeAllListeners('signal');
-			await this.robotUtilsNao.session.disconnect();
-			// console.log("is nao connected", this.robotUtilsNao.session.socket().socket.connected);
-			this.isNaoConnected = false;
+
+		if (this.isNaoConnected) {
+			try {
+				await this.robotUtilsNao.session.disconnect();
+			} catch (error) {
+				console.error('Error disconnecting Nao:', error);
+			}
 		}
 
-		// Réinitialiser la session pour forcer une reconnexion complète
-		this.robotUtilsNao.session = null;
-
-		// Arrêter le serveur Socket.io
-		// if (this.io) {
-		// 	console.log('Stopping socket.io server...');
-		// 	await this.io.httpServer.close();
-		// 	await this.io.close();
-		// }
-
-		// Arrêter le serveur HTTP
-		// if (this.server) {
-		// 	console.log('Stopping HTTP server...');
-		// 	this.server.close(() => {
-		// 		console.log('HTTP server closed');
-		// 	});
-		// 	this.server = null; // Réinitialiser pour éviter les références persistantes
-		// }
-
-		// Assurez-vous que les autres ressources sont bien libérées
+		this.isNaoConnected = false;
 		this.ALTextToSpeech = null;
 		this.ALRobotPosture = null;
 		this.ALLeds = null;
@@ -708,6 +683,22 @@ export default class MainNao {
 		this.ALBehaviorManager = null;
 		this.ALBattery = null;
 
+		this.robotUtilsNao = null;
+
 		console.log('Nao has been fully disconnected.');
+
+		ipcMain.removeHandler('getCodeRunningStatus');
+		ipcMain.removeHandler('getConnectStatus');
+
+		if (this.io) {
+			try {
+				await this.io.httpServer.close();
+				await this.io.close();
+				this.io = null;
+				this.server = null;
+			} catch (error) {
+				console.error('Error stopping socket.io server:', error);
+			}
+		}
 	}
 }

@@ -6,12 +6,9 @@ import Ned2 from '../assets/data/images/ned2.jpg';
 import { CirclesWithBar, ProgressBar } from 'react-loader-spinner';
 
 const NiryoPage = () => {
-	// const [pythonCode, setPythonCode] = useState('');
 	const [rosConnectStatus, setRosConnectStatus] = useState<boolean>(false);
 	const [vittaConnectStatus, setVittaConnectStatus] = useState<boolean>(false);
-	// const [ipAddress, setIpAddress] = useState<string[]>(['', '', '', '']);
 	const [codeRunning, setCodeRunning] = useState<boolean>(false);
-	// const [checkedIp, setCheckedIp] = useState<boolean>(false);
 
 	useEffect(() => {
 		console.log('useEffect codeRunning');
@@ -27,7 +24,8 @@ const NiryoPage = () => {
 		});
 
 		return () => {
-			window.ipcRenderer.removeListener('codeRunningUpdated', codeRunningListener);
+			window.ipcRenderer.removeListener('codeRunningStatusUpdated', codeRunningListener);
+			window.ipcRenderer.removeAllListeners('codeRunningStatusUpdated');
 		};
 	}, []);
 
@@ -49,6 +47,7 @@ const NiryoPage = () => {
 		// listeners cleanup
 		return () => {
 			window.ipcRenderer.removeListener('connectStatusUpdated', connectStatusListener);
+			window.ipcRenderer.removeAllListeners('connectStatusUpdated');
 		};
 	}, []);
 

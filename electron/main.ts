@@ -115,6 +115,7 @@ ipcMain.on('select-robot', async (event, robot) => {
 		}
 	}
 	if (currentRobotInstance) {
+		console.log('Disconnecting current robot', currentRobot);
 		await currentRobotInstance.disconnect();
 	}
 

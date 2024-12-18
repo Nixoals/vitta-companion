@@ -24,12 +24,12 @@ export default class MainNiryo {
 	savePoseTopic: any;
 	robotActionResultTopic: any;
 
-	static instance: MainNiryo;
+	// static instance: MainNiryo;
 
 	constructor(niryoIpAdress: string, win: any) {
-		if (!MainNiryo.instance) {
-			MainNiryo.instance = this;
-		}
+		// if (!MainNiryo.instance) {
+		// 	MainNiryo.instance = this;
+		// }
 		this.ipAdress = niryoIpAdress;
 		this.window = win;
 		this.ros = null;
@@ -41,7 +41,7 @@ export default class MainNiryo {
 		// this.io = null;
 		// this.ros = null;
 		this.status = false;
-		return MainNiryo.instance;
+		// return MainNiryo.instance;
 	}
 
 	init() {
@@ -321,6 +321,11 @@ export default class MainNiryo {
 		// 	console.log('Server closed', "this.io: ", this.io);
 		// }
 		// console.log("io connection", this.io)
+
+		// remove all ipcMain handlers
+		ipcMain.removeHandler('getCodeRunningStatus');
+		ipcMain.removeHandler('getConnectStatus');
+
 		try {
 			if (this.io) {
 				await this.io.httpServer.close();
@@ -335,6 +340,6 @@ export default class MainNiryo {
 		}
 		// console.log('ROS connection closed');
 		this.isRosConnected = false;
-		this.updateConnectionStatus();
+		// this.updateConnectionStatus();
 	}
 }

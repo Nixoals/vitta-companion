@@ -158,7 +158,7 @@ function QiSession(host, resource) {
 	// if (resource == undefined) resource = 'libs/qimessaging/1.0/socket.io';
 	// if (host.substring(0, 7) != 'http://') host = 'http://' + host;
 	var _socket = null;
-	_socket = io_v0_9.connect(`http://${host}`, { resource: 'libs/qimessaging/1.0/socket.io', transports: ['xhr-polling'], reconnect: false });
+	_socket = io_v0_9.connect(`http://${host}`, { resource: 'libs/qimessaging/1.0/socket.io', transports: ['xhr-polling'], reconnect: false, 'force new connection': true });
 	var _dfd = new Array();
 	var _sigs = new Array();
 	var _idm = 0;
@@ -213,10 +213,18 @@ function QiSession(host, resource) {
 
 	_socket.on('disconnect', function (data) {
 		console.log('disconnected');
-		for (var idm in _dfd) {
-			_dfd[idm].reject('Call ' + idm + ' canceled: disconnected');
-			delete _dfd[idm];
+		try {
+			for (var idm in _dfd) {
+				_dfd[idm].reject('Call ' + idm + ' canceled: disconnected');
+				delete _dfd[idm];
+			}
+		} catch (error) {
+			console.error("Error disconnecting socket", error);
 		}
+	});
+
+	_socket.on('connect', function (data) {
+		console.log('connected');
 	});
 
 	function createMetaCall(obj, method, data) {
@@ -258,28 +266,16 @@ function QiSession(host, resource) {
 			
 			console.log("Disconnecting socket...");
 
-			// Supprimer tous les listeners d'événements pour éviter l'accumulation
-			
-			// Déconnecter proprement
-			console.log("socket.disconnect function:", _socket.socket.disconnect.toString());
-			const testResponse = await _socket.socket.disconnect();
-			console.log("testResponse", testResponse);
+			await _socket.socket.disconnect();
 			_socket.removeAllListeners('connect');
 			_socket.removeAllListeners('disconnect');
 			_socket.removeAllListeners('reply');
 			_socket.removeAllListeners('error');
 			_socket.removeAllListeners('signal');
 
-			// S'assurer que le socket est bien déconnecté
-			if (_socket.connected === false) {
-				console.log("Socket is disconnected.");
-			}
-
-			// Réinitialiser l'objet socket à null
 			_socket = null;
-			console.log(_socket);
 			console.log("Socket reset successfully.");
-			
+			return;
 		} catch (error) {
 			console.error("Error disconnecting Nao", error);
 		}
@@ -318,10 +314,8 @@ class RobotUtilsNao {
 
     // Méthode publique pour obtenir les services Naoqi
     onServices(servicesCallback, errorCallback, host) {
-        console.log("pendingConnectionCallbacks: ", this.pendingConnectionCallbacks);
         this.robotIp = host;
         this.connect((session) => {
-            console.log("session: ", session);
             const wantedServices = this.getParamNames(servicesCallback);
             let pendingServices = wantedServices.length;
             const services = new Array(wantedServices.length);
@@ -344,7 +338,6 @@ class RobotUtilsNao {
                     });
             });
 
-            // Vider la file d'attente après avoir récupéré les services
             this.pendingConnectionCallbacks = [];
         }, errorCallback);
     }
@@ -357,10 +350,7 @@ class RobotUtilsNao {
     // Connexion à la session Naoqi
     connect(connectedCallback, failureCallback) {
         if (this.session) {
-            // console.log("here we are");
-            // connectedCallback(this.session);
-            // return;
-			this.session = null;
+            console.log("here we are");
         } else if (this.pendingConnectionCallbacks.length > 0) {
             console.log("here we fall");
             this.pendingConnectionCallbacks.push(connectedCallback);
@@ -373,29 +363,23 @@ class RobotUtilsNao {
         const qimAddress = this.robotIp ? `${this.robotIp}:80` : null;
 
         const onConnected = () => {
-			console.log('Connected to robot with transport:',this.session.socket().socket.transport.name);
-            console.log("is nao connected", this.session.socket().socket.connected);
             this.pendingConnectionCallbacks.forEach(cb => cb(this.session));
         };
 
         const onDisconnected = () => {
             console.log("Disconnected from robot");
-            // if (failureCallback) failureCallback();
         };
 
-        console.log("creating new session");
         this.session = new QiSession(this.robotIp);
-        console.log("session created", this.session);
 
         this.session.socket().on('connect', onConnected);
-        // this.session.socket().on('disconnect', onDisconnected);
+        this.session.socket().on('disconnect', onDisconnected);
     }
 
     // Méthode pour s'abonner aux événements ALMemory
     subscribeToALMemoryEvent(ALMemory, event, eventCallback, subscribeDoneCallback) {
 		const evt = new MemoryEventSubscription(event);
-        // this.onServices((ALMemory) => {
-		console.log("Subscribing to ALMemory event:", event);
+
 		ALMemory.subscriber(event).then((sub) => {
 			evt.setSubscriber(sub);
 			sub.signal.connect(eventCallback).then((id) => {

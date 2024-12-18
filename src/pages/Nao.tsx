@@ -10,7 +10,6 @@ const Nao = () => {
 	const [naoQiConnectStatus, setNaoQiConnectStatus] = useState<boolean>(false);
 
 	useEffect(() => {
-		console.log('useEffect codeRunning');
 		const codeRunningListener = (event: any, status: boolean) => {
 			console.log(event);
 			setCodeRunning(status);
@@ -23,13 +22,15 @@ const Nao = () => {
 		});
 
 		return () => {
-			window.ipcRenderer.removeListener('codeRunningUpdated', codeRunningListener);
+			window.ipcRenderer.removeListener('codeRunningStatusUpdated', codeRunningListener);
+			window.ipcRenderer.removeAllListeners('codeRunningStatusUpdated');
 		};
 	}, []);
 
 	useEffect(() => {
+		console.log("Component mounted");
 		const connectStatusListener = (event: any, { isNaoQiConnected, isVittaConnected }: { isNaoQiConnected: boolean; isVittaConnected: boolean }) => {
-			console.log(event);
+			console.log("update connection status");
 			setNaoQiConnectStatus(isNaoQiConnected);
 			setVittaConnectStatus(isVittaConnected);
 		};
@@ -45,79 +46,69 @@ const Nao = () => {
 		// listeners cleanup
 		return () => {
 			window.ipcRenderer.removeListener('connectStatusUpdated', connectStatusListener);
+			window.ipcRenderer.removeAllListeners('connectStatusUpdated');
+			console.log('Listener Count: ', window.ipcRenderer.listenerCount('connectStatusUpdated'));
 		};
 	}, []);
 
 	return (
-		<>
-			<Link to="/">
-				<button className="mb-8">Home</button>
+		<div className="min-h-screen  p-4">
+			<Link to="/" className="mb-4 inline-block">
+				<button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition">Home</button>
 			</Link>
-			<div className='mb-8'>NAO V6</div>
-			<div className="flex items-center justify-around">
+			<h2 className="text-3xl font-semibold text-center mb-8">NAO V6</h2>
+			<div className="grid grid-cols-5 gap-4 items-center justify-center">
 				<div className={`interface_card ${vittaConnectStatus ? 'bg-flow-green-left' : 'bg-flow-red-left'}`}>
-					<img
-						src={vittaLogo}
-						alt="Vittascience Logo"
-						className="w-full object-contain"
-					/>
+					<img src={vittaLogo} alt="Vittascience Logo" className="w-full h-full object-contain" />
 				</div>
-				{/* <div className={`cable ${vittaConnectStatus ? 'bg-flow-green-left' : 'bg-flow-red-left'}`}></div> */}
 
-				<div className='w-24'>
+				<div className="flex justify-center">
 					<ProgressBar
 						height="80"
 						width="80"
 						ariaLabel="progress-bar-loading"
-						wrapperStyle={{}}
-						wrapperClass="progress-bar-wrapper"
 						borderColor="#22b573"
 						barColor="#22b573"
-						visible={vittaConnectStatus ? true : false}
+						visible={vittaConnectStatus}
 					/>
 				</div>
 
-				<div>companion APP</div>
-				<div className='w-24'>
+				<div className="text-center font-medium text-lg">Companion APP</div>
+
+				<div className="flex justify-center">
 					<ProgressBar
 						height="80"
 						width="80"
 						ariaLabel="progress-bar-loading"
-						wrapperStyle={{}}
-						wrapperClass="progress-bar-wrapper"
 						borderColor="#22b573"
 						barColor="#22b573"
-						visible={naoQiConnectStatus ? true : false}
+						visible={naoQiConnectStatus}
 					/>
 				</div>
+
 				<div className={`interface_card ${naoQiConnectStatus ? 'bg-flow-green-right' : 'bg-flow-red-right'}`}>
-					<img
-						src={NaoImage}
-						alt="Ned2 Logo"
-						className="w-full object-contain"
-					/>
+					<img src={NaoImage} alt="NAO Logo" className="w-full h-full object-contain" />
 				</div>
 			</div>
-			<div className="my-4">{codeRunning ? 'Programme en cours d\'exécution' : "Aucun programme en cours d'exécution"}</div>
-			<div className="h-40 w-full flex justify-center items-center">
+
+			<div className="mt-6 text-center">
+				<p className="text-lg font-medium">
+					{codeRunning ? "Programme en cours d'exécution" : "Aucun programme en cours d'exécution"}
+				</p>
+			</div>
+
+			<div className="flex justify-center items-center h-40">
 				{codeRunning && (
-					<>
-						<CirclesWithBar
-							height="100"
-							width="100"
-							color="#4fa94d"
-							wrapperStyle={{}}
-							wrapperClass=""
-							visible={true}
-							outerCircleColor=""
-							innerCircleColor=""
-							barColor=""
-							ariaLabel="circles-with-bar-loading"
-						/>
-					</>
+					<CirclesWithBar
+						height="100"
+						width="100"
+						color="#4fa94d"
+						ariaLabel="circles-with-bar-loading"
+						visible={true}
+					/>
 				)}
 			</div>
-		</>
+		</div>
 	);
 };
 
