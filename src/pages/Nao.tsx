@@ -11,7 +11,6 @@ const Nao = () => {
 
 	useEffect(() => {
 		const codeRunningListener = (event: any, status: boolean) => {
-			console.log(event);
 			setCodeRunning(status);
 		};
 
@@ -30,7 +29,6 @@ const Nao = () => {
 	useEffect(() => {
 		console.log("Component mounted");
 		const connectStatusListener = (event: any, { isNaoQiConnected, isVittaConnected }: { isNaoQiConnected: boolean; isVittaConnected: boolean }) => {
-			console.log("update connection status");
 			setNaoQiConnectStatus(isNaoQiConnected);
 			setVittaConnectStatus(isVittaConnected);
 		};
