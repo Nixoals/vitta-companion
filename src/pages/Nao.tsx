@@ -27,7 +27,6 @@ const Nao = () => {
 	}, []);
 
 	useEffect(() => {
-		console.log("Component mounted");
 		const connectStatusListener = (_event: any, { isNaoQiConnected, isVittaConnected }: { isNaoQiConnected: boolean; isVittaConnected: boolean }) => {
 			setNaoQiConnectStatus(isNaoQiConnected);
 			setVittaConnectStatus(isVittaConnected);
@@ -45,7 +44,6 @@ const Nao = () => {
 		return () => {
 			window.ipcRenderer.removeListener('connectStatusUpdated', connectStatusListener);
 			window.ipcRenderer.removeAllListeners('connectStatusUpdated');
-			console.log('Listener Count: ', window.ipcRenderer.listenerCount('connectStatusUpdated'));
 		};
 	}, []);
 

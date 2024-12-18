@@ -19,4 +19,4 @@ publish:
   - provider: github
     repo: vitta-companion
     owner: Nixoals
-electronVersion: 26.6.4
+electronVersion: 26.5.0

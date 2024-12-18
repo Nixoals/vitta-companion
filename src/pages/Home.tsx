@@ -75,7 +75,7 @@ const Home = () => {
 								/>
 							</div>
 						</Link>
-						<div>Robot Niryo Ned2</div>
+						<div>Niryo Ned2</div>
 					</div>
 					{/* <div className="flex flex-col">
 						<Link to="/raspberry">
@@ -99,7 +99,7 @@ const Home = () => {
 								/>
 							</div>
 						</Link>
-						<div>Robot Nao</div>
+						<div>NAO V6</div>
 					</div>
 				</div>
 				{messageUpdate ? (
