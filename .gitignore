@@ -28,3 +28,4 @@ package-lock.json
 *.sw?
 
 builderSign.sh
+stats.html
