@@ -5,7 +5,7 @@ import MainNao from './naoInterface/mainNao';
 // import log from 'electron-log';
 
 const os = require('os');
-// const isDev = require('electron-is-dev');
+const isDev = require('electron-is-dev');
 import { ipcMain } from 'electron';
 let currentRobotInstance:any = null;
 let currentRobot:String = '';
@@ -82,9 +82,10 @@ function createWindow() {
 	let platform = os.platform();
 	
 
-	// if (isDev) {
-	win.webContents.openDevTools();
-	// }
+	if (isDev) {
+		console.log('Running in development', isDev);
+		win.webContents.openDevTools();
+	}
 	// Test active push message to Renderer-process.
 	win.webContents.on('did-finish-load', () => {
 		win?.webContents.send('main-process-message', new Date().toLocaleString());
