@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && ./builderSign.sh",
-    "clean-extra": "rm -rf build/mac-arm64",
+    "buildWin": "tsc && vite build && electron-builder && npm run clean-extra",
+    "clean-extra": "rd /s /q build\\win-unpacked",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
