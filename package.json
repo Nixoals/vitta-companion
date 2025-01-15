@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && ./builderSign.sh",
+    "buildLinux": "tsc && vite build && electron-builder --linux",
     "buildWin": "tsc && vite build && electron-builder && npm run clean-extra",
     "clean-extra": "rd /s /q build\\win-unpacked",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -73,6 +74,13 @@
       "target": "dmg",
       "category": "public.app-category.utilities",
       "icon": "assets/icons/favicon.icns"
+    },
+    "linux": {
+      "target": ["deb", "AppImage", "rpm"],
+      "category": "Utility",
+      "icon": "assets/icons",
+      "maintainer": "Vittascience <contact@vittascience.com>",
+      "description": "L'application Vitta Companion permet la connexion entre les robots Niryo Ned2 et NAO V6 et la plateforme Vittascience"
     },
     "publish": [
       {
