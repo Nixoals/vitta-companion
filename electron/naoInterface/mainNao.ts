@@ -15,11 +15,13 @@ export default class MainNao {
 	socket: any | null;
 	robotUtilsNao: any;
 	robotUtils: any;
+	ALDiagnosis: any | null;
 	ALTextToSpeech: any | null;
 	ALAnimatedSpeech: any | null;
 	ALRobotPosture: any | null;
 	ALLeds: any | null;
 	ALMotion: any | null;
+	ALSonar: any | null;
 	ALAutonomousLife: any | null;
 	ALBehaviorManager: any | null;
 	ALBattery: any | null;
@@ -32,6 +34,7 @@ export default class MainNao {
 	io: any;
 	intervalJointsStates: any;
 	intervalRobotPosition: any;
+	intervalSonar: any;
 	intervalCOM: any;
 	intervalSupportPolygon: any;
 	cameraInterval: any;
@@ -46,11 +49,13 @@ export default class MainNao {
 		this.window = win;
 		this.ipAdress = '';
 		this.robotUtils = RobotUtilsNao;
+		this.ALDiagnosis = null;
 		this.ALTextToSpeech = null;
 		this.ALAnimatedSpeech = null;
 		this.ALRobotPosture = null;
 		this.ALLeds = null;
 		this.ALMotion = null;
+		this.ALSonar = null;
 		this.ALAutonomousLife = null;
 		this.ALBehaviorManager = null;
 		this.ALBattery = null;
@@ -60,6 +65,7 @@ export default class MainNao {
 		this.isNaoConnected = false;
 		this.intervalJointsStates = null;
 		this.intervalRobotPosition = null;
+		this.intervalSonar = null;
 		this.intervalCOM = null;
 		this.intervalSupportPolygon = null;
 		this.cameraInterval = null;
@@ -78,19 +84,23 @@ export default class MainNao {
 		this.robotUtilsNao = new RobotUtilsNao();
 		console.log('robotUtilsNao', this.robotUtilsNao);
 		this.robotUtilsNao.onService(
-			(ALLeds: any, ALTextToSpeech: any, ALAnimatedSpeech: any, ALRobotPosture: any, ALMotion: any, ALAutonomousLife: any, ALBehaviorManager: any, ALBattery: any, ALVideoDevice: any, ALMemory: any) => {
+			(ALDiagnosis:any, ALLeds: any, ALTextToSpeech: any, ALAnimatedSpeech: any, ALRobotPosture: any, ALMotion: any, ALSonar: any, ALAutonomousLife: any, ALBehaviorManager: any, ALBattery: any, ALVideoDevice: any, ALMemory: any) => {
 				// retriev all APIs commands
 				// don't forget to remap all services in wantedServices array in robotUtilsNao (onServices) in the same call order (otherwise it will not work due to the minimization of function params)
+				this.ALDiagnosis = ALDiagnosis;
 				this.ALTextToSpeech = ALTextToSpeech;
 				this.ALAnimatedSpeech = ALAnimatedSpeech;
 				this.ALRobotPosture = ALRobotPosture;
 				this.ALLeds = ALLeds;
 				this.ALMotion = ALMotion;
+				this.ALSonar = ALSonar;
 				this.ALAutonomousLife = ALAutonomousLife;
 				this.ALBehaviorManager = ALBehaviorManager;
 				this.ALBattery = ALBattery;
 				this.ALVideoDevice = ALVideoDevice;
 				this.ALMemory = ALMemory;
+
+				this.ALSonar.subscribe('SonarSubscriber', 1, 0.0);
 
 				this.subscribeToALMemoryEvent();
 
@@ -145,6 +155,17 @@ export default class MainNao {
 				this.socket = socket;
 				this.socket.emit('pending-nao-connection');
 			}
+
+			this.socket.on('get_diagnosis', async () => {
+				try {
+					const diagnosis = await this.ALDiagnosis.getPassiveDiagnosis();
+					if (this.socket !== null) {
+						this.socket.emit('diagnosis', diagnosis);
+					}
+				} catch (error) {
+					console.error('Error fetching diagnosis:', error);
+				}
+			});
 
 			this.socket.on('say_animated_text', async (text: String) => {
 				this.currentAction = `animatedSay: ${text}`;
@@ -201,6 +222,24 @@ export default class MainNao {
 						}
 					}
 				}, 50);
+			});
+
+			this.socket.on('subscribe_sonar', async () => {
+				this.intervalSonar = setInterval(async () => {
+					try {
+						const sonarLeft = await this.ALMemory.getData("Device/SubDeviceList/US/Left/Sensor/Value");
+						const sonarRight = await this.ALMemory.getData("Device/SubDeviceList/US/Right/Sensor/Value");
+						if (this.socket !== null && typeof this.socket.emit === 'function') {
+							this.socket.emit('sonar_value', { sonarLeft, sonarRight });
+						} else {
+							clearInterval(this.intervalSonar);
+							this.intervalSonar = null;
+						}
+					} catch (error) {
+						console.error('Error fetching sonar data:', error);
+					}
+						
+				}, 500);
 			});
 
 			this.socket.on('get_com', async () => {
@@ -298,6 +337,7 @@ export default class MainNao {
 				this.isVittaConnected = false;
 				this.updateConnectionStatus();
 				this.clearIntervals();
+				this.killProgram();
 				if (this.socket !== null) {
 					// this.isNaoConnected = false;
 					this.socket = null;
@@ -401,7 +441,80 @@ export default class MainNao {
 				console.error('Error subscribing to robotIsWakeUp');
 			}
 		);
+
+		this.robotUtilsNao.subscribeToALMemoryEvent(
+			this.ALMemory,
+			'TouchChanged',
+			(data: any) => {
+				try {
+					if (this.socket !== null) {
+						this.socket.emit('touch_changed', data);
+					}
+				} catch (error) {
+					console.error('Error subscribing to TouchChanged:', error);
+				}
+			},
+			() => {
+				// console.log('subscribed successfully to TouchChanged');
+			},
+			() => {
+				console.error('Error subscribing to TouchChanged');
+			}
+		);
+
+		// this.robotUtilsNao.subscribeToALMemoryEvent(
+		// 	this.ALMemory,
+		// 	'SonarLeftDetected',
+		// 	(data: any) => {
+		// 		console.log('SonarLeftDetected', data);
+		// 		try {
+		// 			if (this.socket !== null) {
+		// 				this.socket.emit('sonar_left_detected', data);
+		// 			}
+		// 		} catch (error) {
+		// 			console.error('Error subscribing to SonarLeftDetected:', error);
+		// 		}
+		// 	},
+		// 	() => {
+		// 		// console.log('subscribed successfully to SonarLeftDetected');
+		// 	},
+		// 	() => {
+		// 		console.error('Error subscribing to SonarLeftDetected');
+		// 	}
+		// );
+
+		// this.robotUtilsNao.subscribeToALMemoryEvent(
+		// 	this.ALMemory,
+		// 	'SonarRightDetected',
+		// 	(data: any) => {
+		// 		console.log('SonarLeftDetected', data);
+		// 		try {
+		// 			if (this.socket !== null) {
+		// 				this.socket.emit('sonar_right_detected', data);
+		// 			}
+		// 		} catch (error) {
+		// 			console.error('Error subscribing to SonarRightDetected:', error);
+		// 		}
+		// 	},
+		// 	() => {
+		// 		// console.log('subscribed successfully to SonarRightDetected');
+		// 	},
+		// 	() => {
+		// 		console.error('Error subscribing to SonarRightDetected');
+		// 	}
+		// );
 	}
+
+	// async subscribeToSonar() {
+	// 	try {
+	// 		const sonar = await this.ALSonar.subscribe('SonarSubscriber', 100, 0.0);
+	// 		console.log('Subscribed to Sonar', sonar);
+	// 		// console.log('Subscribed to SonarLeftDetected and SonarRightDetected');
+	// 	} catch (error) {
+	// 		console.error('Error fetching sensor data:', error);
+	// 		return null;
+	// 	}
+	// }
 
 	async subscribeToCamera() {
 		try {
@@ -512,6 +625,11 @@ export default class MainNao {
 				this.clearCameraSubscribers(cameraSubscribers);
 			}
 		}
+
+		// if (this.ALSonar) {
+		// 	await this.subscribeToSonar();
+		// }
+
 		setTimeout(async () => {
 			this.checkNaoWakeStatus();
 			this.led('AllLeds', 0.5, 0.5, 0.5, 3);
@@ -587,6 +705,10 @@ export default class MainNao {
 		if (this.cameraInterval) {
 			this.unsubscribeCamera();
 		}
+
+		if (this.intervalSonar) {
+			clearInterval(this.intervalSonar);
+		}
 	}
 
 	async sendSSHCommand(code: string) {
@@ -652,10 +774,12 @@ export default class MainNao {
 				console.log('No program is currently running');
 				return;
 			}
-			this.socket.emit('event', 'Kill_command_sent');
+			if (this.socket !== null) {
+				this.socket.emit('event', 'Kill_command_sent');
+			} 
 			const killResult = await this.sshConnexion.execCommand('pkill -f "/home/nao/nao_temp_code.py"');
 			console.log('STDERR kill: ' + killResult.stderr);
-			if (killResult.stderr) {
+			if (this.socket !== null && killResult.stderr) {
 				this.socket.emit('error', killResult.stderr);
 			}
 		} catch (error) {
