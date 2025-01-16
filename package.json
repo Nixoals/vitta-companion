@@ -54,6 +54,9 @@
     "vite-plugin-electron": "^0.14.0",
     "vite-plugin-electron-renderer": "^0.14.5"
   },
+  "optionalDependencies": {
+    "cpu-features": "false"
+  },
   "main": "dist-electron/main.js",
   "build": {
     "appId": "com.electron.vitta-companion",
@@ -81,7 +84,7 @@
         "AppImage"
       ],
       "category": "Utility",
-      "icon": "assets/icons",
+      "icon": "assets/icons/favicon.icns",
       "maintainer": "Vittascience <contact@vittascience.com>",
       "description": "L'application Vitta Companion permet la connexion entre les robots Niryo Ned2 et NAO V6 et la plateforme Vittascience"
     },
