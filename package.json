@@ -41,7 +41,7 @@
     "@typescript-eslint/parser": "^6.6.0",
     "@vitejs/plugin-react": "^4.0.4",
     "autoprefixer": "^10.4.16",
-    "electron": "^26.1.0",
+    "electron": "^34.0.0",
     "electron-builder": "^24.6.4",
     "eslint": "^8.48.0",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -76,7 +76,10 @@
       "icon": "assets/icons/favicon.icns"
     },
     "linux": {
-      "target": ["deb", "AppImage", "rpm"],
+      "target": [
+        "deb",
+        "AppImage"
+      ],
       "category": "Utility",
       "icon": "assets/icons",
       "maintainer": "Vittascience <contact@vittascience.com>",

@@ -77,15 +77,15 @@ function createWindow() {
 		minHeight: 600,
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.js'),
+			nodeIntegration: false,
+			contextIsolation: true,
+			// enableRemoteModule: false,
 		},
 	});
 	let platform = os.platform();
 	
 
-	if (isDev) {
-		console.log('Running in development', isDev);
-		win.webContents.openDevTools();
-	}
+	
 	// Test active push message to Renderer-process.
 	win.webContents.on('did-finish-load', () => {
 		win?.webContents.send('main-process-message', new Date().toLocaleString());
@@ -96,7 +96,10 @@ function createWindow() {
 			win?.webContents.send('os', 'win');
 			checkVersion('win');
 		}
-		
+		if (isDev) {
+			console.log('Running in development', isDev);
+			win?.webContents.openDevTools({mode: 'detach'});
+		}
 	});
 	
 
