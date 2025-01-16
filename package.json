@@ -60,7 +60,7 @@
   "main": "dist-electron/main.js",
   "build": {
     "appId": "com.electron.vitta-companion",
-    "productName": "Vitta Companion",
+    "productName": "VittaCompanion",
     "copyright": "Copyright © 2023 Vittascience",
     "directories": {
       "output": "build"
