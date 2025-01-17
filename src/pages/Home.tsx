@@ -20,6 +20,8 @@ const Home = () => {
 				setPlatform('win');
 			} else if (os === 'mac') {
 				setPlatform('mac');
+			} else if (os === 'linux') {
+				setPlatform('linux');
 			}
 		});
 

@@ -10,20 +10,6 @@ import { ipcMain } from 'electron';
 let currentRobotInstance:any = null;
 let currentRobot:String = '';
 
-// // Configuration des logs
-// log.transports.file.level = 'info'; // Niveau de log (info, warn, error)
-// log.transports.file.resolvePathFn = () => 'logs/backend.log'; // Emplacement du fichier log
-
-// // Redirection des sorties console
-// console.log = log.info;
-// console.warn = log.warn;
-// console.error = log.error;
-
-// // Exemple de log
-// log.info('Application started in production mode');
-// log.warn('This is a warning');
-// log.error('An error occurred');
-
 
 
 const checkVersion = async (platform:string) => {
@@ -95,6 +81,9 @@ function createWindow() {
 		} else if (platform === 'win32') {
 			win?.webContents.send('os', 'win');
 			checkVersion('win');
+		} else if (platform === 'linux') {
+			win?.webContents.send('os', 'linux');
+			checkVersion('linux');
 		}
 		if (isDev) {
 			console.log('Running in development', isDev);
